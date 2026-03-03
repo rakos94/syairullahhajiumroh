@@ -175,8 +175,9 @@ func (h *JamaahHandler) FindAll(c *gin.Context) {
 
 	search := c.Query("search")
 	statusPembayaran := c.Query("status_pembayaran")
+	kelengkapan := c.Query("kelengkapan")
 
-	results, total, err := h.repo.FindAll(c.Request.Context(), paketID, search, statusPembayaran, page, limit)
+	results, total, err := h.repo.FindAll(c.Request.Context(), paketID, search, statusPembayaran, kelengkapan, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -11,6 +11,7 @@ export default function JamaahList() {
   const [error, setError] = useState('');
   const [filterPaket, setFilterPaket] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterKelengkapan, setFilterKelengkapan] = useState('');
   const [paketOptions, setPaketOptions] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -32,7 +33,7 @@ export default function JamaahList() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, status_pembayaran: filterStatus, page, limit: PAGE_SIZE });
+      const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, status_pembayaran: filterStatus, kelengkapan: filterKelengkapan, page, limit: PAGE_SIZE });
       setJamaahList(res.data || []);
       setTotalPages(res.total_pages || 1);
       setTotal(res.total || 0);
@@ -46,12 +47,12 @@ export default function JamaahList() {
 
   useEffect(() => {
     loadData();
-  }, [filterPaket, filterStatus, debouncedSearch, page]);
+  }, [filterPaket, filterStatus, filterKelengkapan, debouncedSearch, page]);
 
   // Reset to page 1 when filter or search changes
   useEffect(() => {
     setPage(1);
-  }, [filterPaket, filterStatus, debouncedSearch]);
+  }, [filterPaket, filterStatus, filterKelengkapan, debouncedSearch]);
 
   const handleDelete = async (id, nama) => {
     if (!confirm(`Hapus jamaah "${nama}"?`)) return;
@@ -104,6 +105,16 @@ export default function JamaahList() {
           <option value="belum_bayar">Belum Bayar</option>
           <option value="dp">DP</option>
           <option value="lunas">Lunas</option>
+        </select>
+        <select
+          value={filterKelengkapan}
+          onChange={(e) => setFilterKelengkapan(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">Semua Kelengkapan</option>
+          <option value="batik_nasional_belum">Batik Nasional Belum</option>
+          <option value="batik_kbih_belum">Batik KBIH Belum</option>
+          <option value="koper_belum">Koper Belum</option>
         </select>
       </div>
 

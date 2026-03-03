@@ -51,13 +51,21 @@ func (r *JamaahRepository) Create(ctx context.Context, jamaah *model.Jamaah) err
 	return nil
 }
 
-func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.ObjectID, search, statusPembayaran string, page, limit int) ([]model.Jamaah, int64, error) {
+func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.ObjectID, search, statusPembayaran, kelengkapan string, page, limit int) ([]model.Jamaah, int64, error) {
 	filter := bson.M{"deleted_at": nil}
 	if paketID != nil {
 		filter["paket_id"] = *paketID
 	}
 	if statusPembayaran != "" {
 		filter["status_pembayaran"] = statusPembayaran
+	}
+	switch kelengkapan {
+	case "batik_nasional_belum":
+		filter["batik_nasional_sudah_dijahit"] = bson.M{"$ne": true}
+	case "batik_kbih_belum":
+		filter["batik_kbih_sudah_diterima"] = bson.M{"$ne": true}
+	case "koper_belum":
+		filter["koper_sudah_diterima"] = bson.M{"$ne": true}
 	}
 	if search != "" {
 		regex := bson.M{"$regex": search, "$options": "i"}
