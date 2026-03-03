@@ -146,8 +146,7 @@ export default function JamaahForm() {
   };
 
   const selectedPaket = paketOptions.find((p) => p.id === form.paket_id);
-  const hajiDepartures =
-    selectedPaket?.tipe === 'haji' ? selectedPaket.tanggal_keberangkatan || [] : [];
+  const paketDepartures = selectedPaket?.tanggal_keberangkatan || [];
 
   const formatDmyFromIso = (isoStr) => {
     if (!isoStr) return '';
@@ -294,11 +293,11 @@ export default function JamaahForm() {
 
           <div>
             <label className={labelClass}>Tanggal Keberangkatan</label>
-            {hajiDepartures.length > 0 ? (
+            {paketDepartures.length > 0 ? (
               <select
                 value={form.tanggal_keberangkatan ? form.tanggal_keberangkatan.nama : ''}
                 onChange={(e) => {
-                  const tk = hajiDepartures.find((d) => d.nama === e.target.value);
+                  const tk = paketDepartures.find((d) => d.nama === e.target.value);
                   setForm((prev) => ({
                     ...prev,
                     tanggal_keberangkatan: tk ? { nama: tk.nama, tanggal: tk.tanggal } : null,
@@ -307,7 +306,7 @@ export default function JamaahForm() {
                 className={inputClass}
               >
                 <option value="">-- Pilih Keberangkatan --</option>
-                {hajiDepartures.map((tk, i) => (
+                {paketDepartures.map((tk, i) => (
                   <option key={i} value={tk.nama}>
                     {tk.nama}{tk.tanggal ? ` - ${formatDmyFromIso(tk.tanggal)}` : ''}
                   </option>

@@ -92,7 +92,7 @@ export default function JamaahDetail() {
     ['Paket', jamaah.paket?.label || '-'],
     ['Tanggal Keberangkatan', jamaah.tanggal_keberangkatan
       ? (jamaah.tanggal_keberangkatan.nama
-          ? `${jamaah.tanggal_keberangkatan.nama}${jamaah.tanggal_keberangkatan.tanggal ? ` - ${formatDate(jamaah.tanggal_keberangkatan.tanggal)}` : ''}`
+          ? `${jamaah.tanggal_keberangkatan.nama}${formatDate(jamaah.tanggal_keberangkatan.tanggal) !== '-' ? ` - ${formatDate(jamaah.tanggal_keberangkatan.tanggal)}` : ''}`
           : formatDate(jamaah.tanggal_keberangkatan.tanggal))
       : '-'],
     ['No Rekening Haji', jamaah.no_rekening_haji || '-'],

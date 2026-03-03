@@ -110,8 +110,8 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Validate departure date for haji pakets
-	if paket.Tipe == "haji" && len(paket.TanggalKeberangkatan) > 0 {
+	// Validate departure date for pakets with departure options
+	if len(paket.TanggalKeberangkatan) > 0 {
 		if jamaah.TanggalKeberangkatan == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan harus dipilih"})
 			return
@@ -260,8 +260,8 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Validate departure date for haji pakets
-	if paket.Tipe == "haji" && len(paket.TanggalKeberangkatan) > 0 {
+	// Validate departure date for pakets with departure options
+	if len(paket.TanggalKeberangkatan) > 0 {
 		if jamaah.TanggalKeberangkatan == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan harus dipilih"})
 			return

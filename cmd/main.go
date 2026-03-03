@@ -63,7 +63,7 @@ func main() {
 	jamaahRepo := repository.NewJamaahRepository(db)
 	paketRepo := repository.NewPaketRepository(db)
 	jamaahHandler := handler.NewJamaahHandler(jamaahRepo, paketRepo, cfg.UploadDir)
-	paketHandler := handler.NewPaketHandler(paketRepo)
+	paketHandler := handler.NewPaketHandler(paketRepo, jamaahRepo)
 
 	// Setup Gin router
 	r := gin.Default()

@@ -84,7 +84,7 @@ export default function PaketList() {
       tahun: Number(form.tahun),
       bulan: form.tipe === 'umroh' ? Number(form.bulan) : 0,
       tanggal_keberangkatan:
-        form.tipe === 'haji'
+        form.tanggal_keberangkatan.length > 0
           ? form.tanggal_keberangkatan
               .filter((tk) => tk.nama)
               .map((tk) => ({
@@ -177,7 +177,6 @@ export default function PaketList() {
                     ...form,
                     tipe: e.target.value,
                     bulan: e.target.value === 'haji' ? 0 : form.bulan || 1,
-                    tanggal_keberangkatan: e.target.value === 'haji' ? form.tanggal_keberangkatan : [],
                   })}
                   className={inputClass}
                 >
@@ -215,8 +214,7 @@ export default function PaketList() {
               )}
             </div>
 
-            {form.tipe === 'haji' && (
-              <div className="border-t pt-4">
+            <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700">Tanggal Keberangkatan</label>
                   <button
@@ -257,7 +255,6 @@ export default function PaketList() {
                   ))}
                 </div>
               </div>
-            )}
 
             <div className="flex gap-2">
               <button

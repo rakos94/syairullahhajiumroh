@@ -14,11 +14,12 @@ import (
 )
 
 type PaketHandler struct {
-	repo *repository.PaketRepository
+	repo      *repository.PaketRepository
+	jamaahRepo *repository.JamaahRepository
 }
 
-func NewPaketHandler(repo *repository.PaketRepository) *PaketHandler {
-	return &PaketHandler{repo: repo}
+func NewPaketHandler(repo *repository.PaketRepository, jamaahRepo *repository.JamaahRepository) *PaketHandler {
+	return &PaketHandler{repo: repo, jamaahRepo: jamaahRepo}
 }
 
 // CreatePaket godoc
@@ -46,15 +47,12 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
-		for i, tk := range paket.TanggalKeberangkatan {
-			if strings.TrimSpace(tk.Nama) == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
-				return
-			}
-		}
 	}
-	if paket.Tipe == "umroh" {
-		paket.TanggalKeberangkatan = nil
+	for i, tk := range paket.TanggalKeberangkatan {
+		if strings.TrimSpace(tk.Nama) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
+			return
+		}
 	}
 
 	if err := h.repo.Create(c.Request.Context(), &paket); err != nil {
@@ -153,15 +151,12 @@ func (h *PaketHandler) Update(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
-		for i, tk := range paket.TanggalKeberangkatan {
-			if strings.TrimSpace(tk.Nama) == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
-				return
-			}
-		}
 	}
-	if paket.Tipe == "umroh" {
-		paket.TanggalKeberangkatan = nil
+	for i, tk := range paket.TanggalKeberangkatan {
+		if strings.TrimSpace(tk.Nama) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
+			return
+		}
 	}
 
 	if err := h.repo.Update(c.Request.Context(), id, &paket); err != nil {
@@ -171,6 +166,11 @@ func (h *PaketHandler) Update(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Sync jamaah departure dates
+	for _, tk := range paket.TanggalKeberangkatan {
+		_ = h.jamaahRepo.UpdateDepartureByPaket(c.Request.Context(), id, tk.Nama, tk.Tanggal)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "paket berhasil diperbarui"})

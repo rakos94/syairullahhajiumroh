@@ -132,6 +132,20 @@ func (r *JamaahRepository) PushToArray(ctx context.Context, id primitive.ObjectI
 	return err
 }
 
+func (r *JamaahRepository) UpdateDepartureByPaket(ctx context.Context, paketID primitive.ObjectID, nama string, tanggal *time.Time) error {
+	filter := bson.M{
+		"paket_id":                   paketID,
+		"deleted_at":                 nil,
+		"tanggal_keberangkatan.nama": nama,
+	}
+	update := bson.M{"$set": bson.M{
+		"tanggal_keberangkatan.tanggal": tanggal,
+		"updated_at":                    time.Now(),
+	}}
+	_, err := r.collection.UpdateMany(ctx, filter, update)
+	return err
+}
+
 func (r *JamaahRepository) PullFromArray(ctx context.Context, id primitive.ObjectID, field string, value interface{}) error {
 	_, err := r.collection.UpdateOne(
 		ctx,
