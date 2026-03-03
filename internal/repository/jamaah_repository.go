@@ -119,3 +119,27 @@ func (r *JamaahRepository) UpdateField(ctx context.Context, id primitive.ObjectI
 	)
 	return err
 }
+
+func (r *JamaahRepository) PushToArray(ctx context.Context, id primitive.ObjectID, field string, value interface{}) error {
+	_, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": id, "deleted_at": nil},
+		bson.M{
+			"$push": bson.M{field: value},
+			"$set":  bson.M{"updated_at": time.Now()},
+		},
+	)
+	return err
+}
+
+func (r *JamaahRepository) PullFromArray(ctx context.Context, id primitive.ObjectID, field string, value interface{}) error {
+	_, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": id, "deleted_at": nil},
+		bson.M{
+			"$pull": bson.M{field: value},
+			"$set":  bson.M{"updated_at": time.Now()},
+		},
+	)
+	return err
+}

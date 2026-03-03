@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"syairullahhajiumroh/internal/model"
 	"syairullahhajiumroh/internal/repository"
@@ -18,11 +19,18 @@ import (
 )
 
 var validDocTypes = map[string]string{
-	"ktp":            "foto_ktp",
-	"kk":             "foto_kk",
-	"paspor":         "foto_paspor",
-	"pasfoto":        "pasfoto",
-	"koper_diterima": "foto_koper_diterima",
+	"ktp":             "foto_ktp",
+	"kk":              "foto_kk",
+	"paspor":          "foto_paspor",
+	"pasfoto":         "pasfoto",
+	"koper_diterima":  "foto_koper_diterima",
+	"bukti_dp":        "bukti_dp",
+	"bukti_pelunasan": "bukti_pelunasan",
+}
+
+var multiDocTypes = map[string]bool{
+	"bukti_dp":        true,
+	"bukti_pelunasan": true,
 }
 
 var allowedExtensions = map[string]bool{
@@ -337,7 +345,7 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 	}
 
 	// Check jamaah exists
-	_, err = h.repo.FindByID(c.Request.Context(), id)
+	jamaah, err := h.repo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "jamaah tidak ditemukan"})
@@ -366,7 +374,32 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	filename := docType + ext
+	// Delete old file for single-doc types
+	if !multiDocTypes[docType] {
+		var oldPath string
+		switch bsonField {
+		case "foto_ktp":
+			oldPath = jamaah.FotoKTP
+		case "foto_kk":
+			oldPath = jamaah.FotoKK
+		case "foto_paspor":
+			oldPath = jamaah.FotoPaspor
+		case "pasfoto":
+			oldPath = jamaah.Pasfoto
+		case "foto_koper_diterima":
+			oldPath = jamaah.FotoKoperDiterima
+		}
+		if oldPath != "" {
+			os.Remove(filepath.Join(h.uploadDir, oldPath))
+		}
+	}
+
+	var filename string
+	if multiDocTypes[docType] {
+		filename = fmt.Sprintf("%s_%d%s", docType, time.Now().UnixMilli(), ext)
+	} else {
+		filename = docType + ext
+	}
 	filePath := filepath.Join(dir, filename)
 
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
@@ -376,9 +409,18 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 
 	// Update jamaah record with relative path
 	relativePath := filepath.Join(id.Hex(), filename)
-	if err := h.repo.UpdateField(c.Request.Context(), id, bsonField, relativePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if multiDocTypes[docType] {
+		nominal, _ := strconv.ParseFloat(c.PostForm("nominal"), 64)
+		entry := model.BuktiPembayaran{File: relativePath, Nominal: nominal}
+		if err := h.repo.PushToArray(c.Request.Context(), id, bsonField, entry); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.repo.UpdateField(c.Request.Context(), id, bsonField, relativePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil diupload", docType), "path": relativePath})
@@ -420,6 +462,24 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
+	if multiDocTypes[docType] {
+		var entries []model.BuktiPembayaran
+		switch bsonField {
+		case "bukti_dp":
+			entries = jamaah.BuktiDP
+		case "bukti_pelunasan":
+			entries = jamaah.BuktiPelunasan
+		}
+		idxStr := c.Query("index")
+		idx, err := strconv.Atoi(idxStr)
+		if err != nil || idx < 0 || idx >= len(entries) {
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("dokumen %s tidak ditemukan", docType)})
+			return
+		}
+		c.File(filepath.Join(h.uploadDir, entries[idx].File))
+		return
+	}
+
 	var relativePath string
 	switch bsonField {
 	case "foto_ktp":
@@ -443,6 +503,59 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 	c.File(filePath)
 }
 
+func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id tidak valid"})
+		return
+	}
+
+	docType := c.Param("docType")
+	bsonField, ok := validDocTypes[docType]
+	if !ok || !multiDocTypes[docType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tipe dokumen tidak valid"})
+		return
+	}
+
+	jamaah, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "jamaah tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var entries []model.BuktiPembayaran
+	switch bsonField {
+	case "bukti_dp":
+		entries = jamaah.BuktiDP
+	case "bukti_pelunasan":
+		entries = jamaah.BuktiPelunasan
+	}
+
+	idxStr := c.Query("index")
+	idx, err := strconv.Atoi(idxStr)
+	if err != nil || idx < 0 || idx >= len(entries) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "index tidak valid"})
+		return
+	}
+
+	entry := entries[idx]
+
+	// Remove file
+	os.Remove(filepath.Join(h.uploadDir, entry.File))
+
+	// Remove from array in DB
+	if err := h.repo.PullFromArray(c.Request.Context(), id, bsonField, entry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
+}
+
 func validDocTypesList() string {
 	types := make([]string, 0, len(validDocTypes))
 	for k := range validDocTypes {
@@ -461,5 +574,6 @@ func (h *JamaahHandler) RegisterRoutes(r *gin.RouterGroup) {
 		jamaah.DELETE("/:id", h.Delete)
 		jamaah.POST("/:id/upload/:docType", h.UploadDocument)
 		jamaah.GET("/:id/dokumen/:docType", h.GetDocument)
+		jamaah.DELETE("/:id/dokumen/:docType", h.DeleteDocument)
 	}
 }

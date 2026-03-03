@@ -11,6 +11,11 @@ type KeberangkatanJamaah struct {
 	Tanggal time.Time `json:"tanggal" bson:"tanggal"`
 }
 
+type BuktiPembayaran struct {
+	File    string  `json:"file" bson:"file"`
+	Nominal float64 `json:"nominal" bson:"nominal"`
+}
+
 type Jamaah struct {
 	ID                        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Nama                      string             `json:"nama" bson:"nama" binding:"required"`
@@ -35,6 +40,8 @@ type Jamaah struct {
 	FotoPaspor                string             `json:"foto_paspor" bson:"foto_paspor"`
 	Pasfoto                   string             `json:"pasfoto" bson:"pasfoto"`
 	FotoKoperDiterima         string             `json:"foto_koper_diterima" bson:"foto_koper_diterima"`
+	BuktiDP                   []BuktiPembayaran  `json:"bukti_dp,omitempty" bson:"bukti_dp,omitempty"`
+	BuktiPelunasan            []BuktiPembayaran  `json:"bukti_pelunasan,omitempty" bson:"bukti_pelunasan,omitempty"`
 	Keterangan                string             `json:"keterangan" bson:"keterangan"`
 	CreatedAt                 time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                 time.Time          `json:"updated_at" bson:"updated_at"`

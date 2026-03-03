@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchJamaahById, uploadDocument, getDocumentUrl } from '../api';
+import { fetchJamaahById, uploadDocument, getDocumentUrl, getMultiDocumentUrl, deleteDocument } from '../api';
 import StatusBadge from '../components/StatusBadge';
 
-const docTypes = [
+const singleDocTypes = [
   { key: 'ktp', label: 'KTP', field: 'foto_ktp' },
   { key: 'kk', label: 'KK', field: 'foto_kk' },
   { key: 'paspor', label: 'Paspor', field: 'foto_paspor' },
   { key: 'pasfoto', label: 'Pas Foto', field: 'pasfoto' },
   { key: 'koper_diterima', label: 'Koper Diterima', field: 'foto_koper_diterima' },
+];
+
+const multiDocTypes = [
+  { key: 'bukti_dp', label: 'Bukti Pembayaran DP', field: 'bukti_dp' },
+  { key: 'bukti_pelunasan', label: 'Bukti Pelunasan', field: 'bukti_pelunasan' },
 ];
 
 function formatDate(dateStr) {
@@ -44,10 +49,22 @@ export default function JamaahDetail() {
     loadData();
   }, [id]);
 
-  const handleUpload = async (docType, file) => {
+  const handleUpload = async (docType, file, nominal) => {
     try {
       setUploadMsg('');
-      const result = await uploadDocument(id, docType, file);
+      const result = await uploadDocument(id, docType, file, nominal);
+      setUploadMsg(result.message);
+      loadData();
+    } catch (err) {
+      setUploadMsg(err.message);
+    }
+  };
+
+  const handleDeleteDoc = async (docType, index) => {
+    if (!confirm('Hapus dokumen ini?')) return;
+    try {
+      setUploadMsg('');
+      const result = await deleteDocument(id, docType, index);
       setUploadMsg(result.message);
       loadData();
     } catch (err) {
@@ -142,7 +159,7 @@ export default function JamaahDetail() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {docTypes.map((doc) => {
+          {singleDocTypes.map((doc) => {
             const filePath = jamaah[doc.field];
             const hasFile = Boolean(filePath);
             const isImage = hasFile && /\.(jpg|jpeg|png)$/i.test(filePath);
@@ -203,6 +220,82 @@ export default function JamaahDetail() {
             );
           })}
         </div>
+
+        {multiDocTypes.map((doc) => {
+          const entries = jamaah[doc.field] || [];
+          return (
+            <div key={doc.key} className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-gray-700">{doc.label}</p>
+                <label className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-md hover:bg-emerald-100 cursor-pointer">
+                  + Tambah
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        const file = e.target.files[0];
+                        e.target.value = '';
+                        const nominal = prompt('Masukkan nominal pembayaran (Rp):');
+                        if (nominal === null) return;
+                        handleUpload(doc.key, file, Number(nominal.replace(/\D/g, '')) || 0);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              {entries.length === 0 ? (
+                <div className="flex items-center justify-center w-full h-24 bg-gray-50 rounded border border-dashed border-gray-300">
+                  <p className="text-xs text-gray-400">Belum ada dokumen</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {entries.map((entry, idx) => {
+                    const isImage = /\.(jpg|jpeg|png)$/i.test(entry.file);
+                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx);
+                    return (
+                      <div key={idx} className="relative border border-gray-200 rounded-lg p-2 group">
+                        {isImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightbox({ url: fileUrl, label: `${doc.label} ${idx + 1}` })}
+                            className="w-full cursor-pointer"
+                          >
+                            <img
+                              src={fileUrl}
+                              alt={`${doc.label} ${idx + 1}`}
+                              className="w-full h-32 object-contain rounded"
+                            />
+                          </button>
+                        ) : (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-center w-full h-32 bg-gray-50 rounded text-emerald-600 hover:text-emerald-800 text-sm font-medium"
+                          >
+                            Lihat PDF
+                          </a>
+                        )}
+                        <p className="mt-1 text-xs font-medium text-gray-700 text-center">
+                          Rp {entry.nominal?.toLocaleString('id-ID') || '0'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoc(doc.key, idx)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          x
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Lightbox Modal */}

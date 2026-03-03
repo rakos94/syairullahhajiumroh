@@ -88,9 +88,10 @@ export async function deleteJamaah(id) {
   return res.json();
 }
 
-export async function uploadDocument(id, docType, file) {
+export async function uploadDocument(id, docType, file, nominal) {
   const formData = new FormData();
   formData.append('file', file);
+  if (nominal !== undefined) formData.append('nominal', nominal);
   const res = await fetch(`${BASE}/jamaah/${id}/upload/${docType}`, {
     method: 'POST',
     body: formData,
@@ -104,4 +105,19 @@ export async function uploadDocument(id, docType, file) {
 
 export function getDocumentUrl(id, docType) {
   return `${BASE}/jamaah/${id}/dokumen/${docType}`;
+}
+
+export function getMultiDocumentUrl(id, docType, index) {
+  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`;
+}
+
+export async function deleteDocument(id, docType, index) {
+  const res = await fetch(`${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal menghapus dokumen');
+  }
+  return res.json();
 }
