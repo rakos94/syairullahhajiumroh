@@ -10,6 +10,7 @@ export default function JamaahList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterPaket, setFilterPaket] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [paketOptions, setPaketOptions] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -31,7 +32,7 @@ export default function JamaahList() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, page, limit: PAGE_SIZE });
+      const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, status_pembayaran: filterStatus, page, limit: PAGE_SIZE });
       setJamaahList(res.data || []);
       setTotalPages(res.total_pages || 1);
       setTotal(res.total || 0);
@@ -45,12 +46,12 @@ export default function JamaahList() {
 
   useEffect(() => {
     loadData();
-  }, [filterPaket, debouncedSearch, page]);
+  }, [filterPaket, filterStatus, debouncedSearch, page]);
 
   // Reset to page 1 when filter or search changes
   useEffect(() => {
     setPage(1);
-  }, [filterPaket, debouncedSearch]);
+  }, [filterPaket, filterStatus, debouncedSearch]);
 
   const handleDelete = async (id, nama) => {
     if (!confirm(`Hapus jamaah "${nama}"?`)) return;
@@ -93,6 +94,16 @@ export default function JamaahList() {
               {p.label}
             </option>
           ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">Semua Status</option>
+          <option value="belum_bayar">Belum Bayar</option>
+          <option value="dp">DP</option>
+          <option value="lunas">Lunas</option>
         </select>
       </div>
 

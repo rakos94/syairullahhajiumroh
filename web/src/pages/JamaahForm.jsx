@@ -102,10 +102,11 @@ export default function JamaahForm() {
     try {
       if (isEdit) {
         await updateJamaah(id, payload);
+        navigate(`/jamaah/${id}`);
       } else {
-        await createJamaah(payload);
+        const created = await createJamaah(payload);
+        navigate(`/jamaah/${created.id}`);
       }
-      navigate('/jamaah');
     } catch (err) {
       setError(err.message);
     } finally {
