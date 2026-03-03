@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -81,6 +82,35 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 					Keys: bson.D{{Key: "paket_id", Value: 1}},
 				})
 				return err
+			},
+		},
+		{
+			Name: "004_migrate_tanggal_keberangkatan",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("jamaah")
+				cursor, err := coll.Find(ctx, bson.M{
+					"tanggal_keberangkatan": bson.M{"$type": "date"},
+				})
+				if err != nil {
+					return err
+				}
+				defer cursor.Close(ctx)
+
+				for cursor.Next(ctx) {
+					var doc bson.M
+					if err := cursor.Decode(&doc); err != nil {
+						return err
+					}
+					id := doc["_id"]
+					oldDate := doc["tanggal_keberangkatan"].(primitive.DateTime)
+					_, err := coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+						"$set": bson.M{"tanggal_keberangkatan": bson.M{"tanggal": oldDate}},
+					})
+					if err != nil {
+						return err
+					}
+				}
+				return cursor.Err()
 			},
 		},
 	}

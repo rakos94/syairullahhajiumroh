@@ -16,7 +16,7 @@ const bulanOptions = [
   { value: 12, label: 'Desember' },
 ];
 
-const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0 };
+const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0, tanggal_keberangkatan: [] };
 
 export default function PaketList() {
   const [paketList, setPaketList] = useState([]);
@@ -51,7 +51,15 @@ export default function PaketList() {
   };
 
   const handleEdit = (paket) => {
-    setForm({ tipe: paket.tipe, tahun: paket.tahun, bulan: paket.bulan || 0 });
+    setForm({
+      tipe: paket.tipe,
+      tahun: paket.tahun,
+      bulan: paket.bulan || 0,
+      tanggal_keberangkatan: (paket.tanggal_keberangkatan || []).map((tk) => ({
+        nama: tk.nama,
+        tanggal: tk.tanggal ? tk.tanggal.slice(0, 10) : '',
+      })),
+    });
     setEditingId(paket.id);
     setShowForm(true);
   };
@@ -75,6 +83,15 @@ export default function PaketList() {
       tipe: form.tipe,
       tahun: Number(form.tahun),
       bulan: form.tipe === 'umroh' ? Number(form.bulan) : 0,
+      tanggal_keberangkatan:
+        form.tipe === 'haji'
+          ? form.tanggal_keberangkatan
+              .filter((tk) => tk.nama)
+              .map((tk) => ({
+                nama: tk.nama,
+                ...(tk.tanggal ? { tanggal: new Date(tk.tanggal + 'T00:00:00Z').toISOString() } : {}),
+              }))
+          : undefined,
     };
 
     try {
@@ -90,6 +107,36 @@ export default function PaketList() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addKeberangkatan = () => {
+    setForm((prev) => ({
+      ...prev,
+      tanggal_keberangkatan: [...prev.tanggal_keberangkatan, { nama: '', tanggal: '' }],
+    }));
+  };
+
+  const updateKeberangkatan = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      tanggal_keberangkatan: prev.tanggal_keberangkatan.map((tk, i) =>
+        i === index ? { ...tk, [field]: value } : tk
+      ),
+    }));
+  };
+
+  const removeKeberangkatan = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      tanggal_keberangkatan: prev.tanggal_keberangkatan.filter((_, i) => i !== index),
+    }));
+  };
+
+  const formatDisplayDate = (isoStr) => {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const inputClass =
@@ -120,46 +167,98 @@ export default function PaketList() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             {editingId ? 'Edit Paket' : 'Tambah Paket Baru'}
           </h2>
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
-              <select
-                value={form.tipe}
-                onChange={(e) => setForm({ ...form, tipe: e.target.value, bulan: e.target.value === 'haji' ? 0 : form.bulan || 1 })}
-                className={inputClass}
-              >
-                <option value="haji">Haji</option>
-                <option value="umroh">Umroh</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
-              <input
-                type="number"
-                value={form.tahun}
-                onChange={(e) => setForm({ ...form, tahun: e.target.value })}
-                min={2020}
-                max={2100}
-                required
-                className={inputClass}
-              />
-            </div>
-            {form.tipe === 'umroh' && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
                 <select
-                  value={form.bulan}
-                  onChange={(e) => setForm({ ...form, bulan: Number(e.target.value) })}
+                  value={form.tipe}
+                  onChange={(e) => setForm({
+                    ...form,
+                    tipe: e.target.value,
+                    bulan: e.target.value === 'haji' ? 0 : form.bulan || 1,
+                    tanggal_keberangkatan: e.target.value === 'haji' ? form.tanggal_keberangkatan : [],
+                  })}
                   className={inputClass}
                 >
-                  {bulanOptions.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
+                  <option value="haji">Haji</option>
+                  <option value="umroh">Umroh</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                <input
+                  type="number"
+                  value={form.tahun}
+                  onChange={(e) => setForm({ ...form, tahun: e.target.value })}
+                  min={2020}
+                  max={2100}
+                  required
+                  className={inputClass}
+                />
+              </div>
+              {form.tipe === 'umroh' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                  <select
+                    value={form.bulan}
+                    onChange={(e) => setForm({ ...form, bulan: Number(e.target.value) })}
+                    className={inputClass}
+                  >
+                    {bulanOptions.map((b) => (
+                      <option key={b.value} value={b.value}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {form.tipe === 'haji' && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Tanggal Keberangkatan</label>
+                  <button
+                    type="button"
+                    onClick={addKeberangkatan}
+                    className="text-sm text-emerald-600 hover:text-emerald-800 font-medium"
+                  >
+                    + Tambah
+                  </button>
+                </div>
+                {form.tanggal_keberangkatan.length === 0 && (
+                  <p className="text-sm text-gray-400">Belum ada tanggal keberangkatan.</p>
+                )}
+                <div className="space-y-2">
+                  {form.tanggal_keberangkatan.map((tk, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Nama (cth: JKG)"
+                        value={tk.nama}
+                        onChange={(e) => updateKeberangkatan(i, 'nama', e.target.value)}
+                        className={inputClass + ' w-32'}
+                      />
+                      <input
+                        type="date"
+                        value={tk.tanggal}
+                        onChange={(e) => updateKeberangkatan(i, 'tanggal', e.target.value)}
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeKeberangkatan(i)}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium px-2"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
+
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -204,6 +303,9 @@ export default function PaketList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Bulan
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Keberangkatan
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Aksi
                 </th>
@@ -226,6 +328,18 @@ export default function PaketList() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {p.bulan ? bulanOptions.find((b) => b.value === p.bulan)?.label || '-' : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {p.tanggal_keberangkatan && p.tanggal_keberangkatan.length > 0
+                      ? p.tanggal_keberangkatan.map((tk, i) => (
+                          <span key={i} className="inline-block mr-3">
+                            <span className="font-medium text-gray-700">{tk.nama}</span>
+                            {tk.tanggal && (
+                              <span className="text-gray-400"> {formatDisplayDate(tk.tanggal)}</span>
+                            )}
+                          </span>
+                        ))
+                      : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
                     <button

@@ -77,10 +77,11 @@ func (r *PaketRepository) Update(ctx context.Context, id primitive.ObjectID, pak
 		ctx,
 		bson.M{"_id": id},
 		bson.M{"$set": bson.M{
-			"tipe":       paket.Tipe,
-			"tahun":      paket.Tahun,
-			"bulan":      paket.Bulan,
-			"updated_at": paket.UpdatedAt,
+			"tipe":                    paket.Tipe,
+			"tahun":                   paket.Tahun,
+			"bulan":                   paket.Bulan,
+			"tanggal_keberangkatan":   paket.TanggalKeberangkatan,
+			"updated_at":              paket.UpdatedAt,
 		}},
 	)
 	return err

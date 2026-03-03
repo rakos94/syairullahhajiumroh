@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"syairullahhajiumroh/internal/model"
 	"syairullahhajiumroh/internal/repository"
@@ -44,6 +46,15 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
+		for i, tk := range paket.TanggalKeberangkatan {
+			if strings.TrimSpace(tk.Nama) == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
+				return
+			}
+		}
+	}
+	if paket.Tipe == "umroh" {
+		paket.TanggalKeberangkatan = nil
 	}
 
 	if err := h.repo.Create(c.Request.Context(), &paket); err != nil {
@@ -142,6 +153,15 @@ func (h *PaketHandler) Update(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
+		for i, tk := range paket.TanggalKeberangkatan {
+			if strings.TrimSpace(tk.Nama) == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
+				return
+			}
+		}
+	}
+	if paket.Tipe == "umroh" {
+		paket.TanggalKeberangkatan = nil
 	}
 
 	if err := h.repo.Update(c.Request.Context(), id, &paket); err != nil {

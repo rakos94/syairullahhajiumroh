@@ -66,10 +66,15 @@ export default function JamaahDetail() {
     ['Nomor Paspor', jamaah.nomor_paspor || '-'],
     ['Alamat', jamaah.alamat || '-'],
     ['No HP', jamaah.no_hp || '-'],
+    ['Tempat Lahir', jamaah.tempat_lahir || '-'],
     ['Tanggal Lahir', formatDate(jamaah.tanggal_lahir)],
     ['Jenis Kelamin', jamaah.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'],
     ['Paket', jamaah.paket?.label || '-'],
-    ['Tanggal Keberangkatan', formatDate(jamaah.tanggal_keberangkatan)],
+    ['Tanggal Keberangkatan', jamaah.tanggal_keberangkatan
+      ? (jamaah.tanggal_keberangkatan.nama
+          ? `${jamaah.tanggal_keberangkatan.nama}${jamaah.tanggal_keberangkatan.tanggal ? ` - ${formatDate(jamaah.tanggal_keberangkatan.tanggal)}` : ''}`
+          : formatDate(jamaah.tanggal_keberangkatan.tanggal))
+      : '-'],
     ['No Rekening Haji', jamaah.no_rekening_haji || '-'],
     ['Tipe Bank', jamaah.tipe_bank || '-'],
     ['Keterangan', jamaah.keterangan || '-'],

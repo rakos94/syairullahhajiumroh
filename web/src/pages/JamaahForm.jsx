@@ -8,10 +8,11 @@ const emptyForm = {
   nomor_paspor: '',
   alamat: '',
   no_hp: '',
+  tempat_lahir: '',
   tanggal_lahir: '',
   jenis_kelamin: 'laki-laki',
   paket_id: '',
-  tanggal_keberangkatan: '',
+  tanggal_keberangkatan: null,
   status_pembayaran: 'belum_bayar',
   no_rekening_haji: '',
   tipe_bank: '',
@@ -83,10 +84,11 @@ export default function JamaahForm() {
             nomor_paspor: data.nomor_paspor || '',
             alamat: data.alamat || '',
             no_hp: data.no_hp || '',
+            tempat_lahir: data.tempat_lahir || '',
             tanggal_lahir: isoToDmy(data.tanggal_lahir),
             jenis_kelamin: data.jenis_kelamin || 'laki-laki',
             paket_id: data.paket_id || '',
-            tanggal_keberangkatan: isoToDmy(data.tanggal_keberangkatan),
+            tanggal_keberangkatan: data.tanggal_keberangkatan || null,
             status_pembayaran: data.status_pembayaran || 'belum_bayar',
             no_rekening_haji: data.no_rekening_haji || '',
             tipe_bank: data.tipe_bank || '',
@@ -101,7 +103,7 @@ export default function JamaahForm() {
     }
   }, [id, isEdit]);
 
-  const dateFields = ['tanggal_lahir', 'tanggal_keberangkatan'];
+  const dateFields = ['tanggal_lahir'];
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -126,7 +128,7 @@ export default function JamaahForm() {
     const payload = {
       ...form,
       tanggal_lahir: dmyToIso(form.tanggal_lahir) || undefined,
-      tanggal_keberangkatan: dmyToIso(form.tanggal_keberangkatan) || undefined,
+      tanggal_keberangkatan: form.tanggal_keberangkatan || undefined,
     };
 
     try {
@@ -141,6 +143,17 @@ export default function JamaahForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const selectedPaket = paketOptions.find((p) => p.id === form.paket_id);
+  const hajiDepartures =
+    selectedPaket?.tipe === 'haji' ? selectedPaket.tanggal_keberangkatan || [] : [];
+
+  const formatDmyFromIso = (isoStr) => {
+    if (!isoStr) return '';
+    const d = isoStr.slice(0, 10);
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
   };
 
   const inputClass =
@@ -223,6 +236,16 @@ export default function JamaahForm() {
           </div>
 
           <div>
+            <label className={labelClass}>Tempat Lahir</label>
+            <input
+              name="tempat_lahir"
+              value={form.tempat_lahir}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
             <label className={labelClass}>Tanggal Lahir</label>
             <input
               name="tanggal_lahir"
@@ -256,7 +279,7 @@ export default function JamaahForm() {
             <select
               name="paket_id"
               value={form.paket_id}
-              onChange={handleChange}
+              onChange={(e) => setForm((prev) => ({ ...prev, paket_id: e.target.value, tanggal_keberangkatan: null }))}
               required
               className={inputClass}
             >
@@ -271,14 +294,42 @@ export default function JamaahForm() {
 
           <div>
             <label className={labelClass}>Tanggal Keberangkatan</label>
-            <input
-              name="tanggal_keberangkatan"
-              value={form.tanggal_keberangkatan}
-              onChange={handleChange}
-              placeholder="dd/mm/yyyy"
-              maxLength={10}
-              className={inputClass}
-            />
+            {hajiDepartures.length > 0 ? (
+              <select
+                value={form.tanggal_keberangkatan ? form.tanggal_keberangkatan.nama : ''}
+                onChange={(e) => {
+                  const tk = hajiDepartures.find((d) => d.nama === e.target.value);
+                  setForm((prev) => ({
+                    ...prev,
+                    tanggal_keberangkatan: tk ? { nama: tk.nama, tanggal: tk.tanggal } : null,
+                  }));
+                }}
+                className={inputClass}
+              >
+                <option value="">-- Pilih Keberangkatan --</option>
+                {hajiDepartures.map((tk, i) => (
+                  <option key={i} value={tk.nama}>
+                    {tk.nama}{tk.tanggal ? ` - ${formatDmyFromIso(tk.tanggal)}` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                name="tanggal_keberangkatan_manual"
+                value={form.tanggal_keberangkatan ? isoToDmy(form.tanggal_keberangkatan.tanggal) : ''}
+                onChange={(e) => {
+                  const val = handleDateInput(e.target.value, '');
+                  const iso = dmyToIso(val);
+                  setForm((prev) => ({
+                    ...prev,
+                    tanggal_keberangkatan: val ? { tanggal: iso || val } : null,
+                  }));
+                }}
+                placeholder="dd/mm/yyyy"
+                maxLength={10}
+                className={inputClass}
+              />
+            )}
           </div>
 
           <div>

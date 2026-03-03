@@ -102,6 +102,25 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Validate departure date for haji pakets
+	if paket.Tipe == "haji" && len(paket.TanggalKeberangkatan) > 0 {
+		if jamaah.TanggalKeberangkatan == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan harus dipilih"})
+			return
+		}
+		found := false
+		for _, tk := range paket.TanggalKeberangkatan {
+			if tk.Nama == jamaah.TanggalKeberangkatan.Nama {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan tidak valid untuk paket ini"})
+			return
+		}
+	}
+
 	if err := h.repo.Create(c.Request.Context(), &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "jamaah dengan NIK atau nomor paspor tersebut sudah ada"})
@@ -227,9 +246,29 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 	}
 
 	// Validate paket_id exists
-	if _, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err != nil {
+	paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
 		return
+	}
+
+	// Validate departure date for haji pakets
+	if paket.Tipe == "haji" && len(paket.TanggalKeberangkatan) > 0 {
+		if jamaah.TanggalKeberangkatan == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan harus dipilih"})
+			return
+		}
+		found := false
+		for _, tk := range paket.TanggalKeberangkatan {
+			if tk.Nama == jamaah.TanggalKeberangkatan.Nama {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tanggal keberangkatan tidak valid untuk paket ini"})
+			return
+		}
 	}
 
 	if err := h.repo.Update(c.Request.Context(), id, &jamaah); err != nil {

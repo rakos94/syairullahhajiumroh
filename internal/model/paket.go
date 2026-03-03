@@ -12,14 +12,20 @@ var bulanIndonesia = [...]string{
 	"Juli", "Agustus", "September", "Oktober", "November", "Desember",
 }
 
+type TanggalKeberangkatanPaket struct {
+	Nama    string     `json:"nama" bson:"nama"`
+	Tanggal *time.Time `json:"tanggal,omitempty" bson:"tanggal,omitempty"`
+}
+
 type Paket struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Tipe      string             `json:"tipe" bson:"tipe" binding:"required,oneof=haji umroh"`
-	Tahun     int                `json:"tahun" bson:"tahun" binding:"required"`
-	Bulan     int                `json:"bulan,omitempty" bson:"bulan,omitempty"`
-	Label     string             `json:"label" bson:"-"`
-	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
+	ID                   primitive.ObjectID          `json:"id" bson:"_id,omitempty"`
+	Tipe                 string                      `json:"tipe" bson:"tipe" binding:"required,oneof=haji umroh"`
+	Tahun                int                         `json:"tahun" bson:"tahun" binding:"required"`
+	Bulan                int                         `json:"bulan,omitempty" bson:"bulan,omitempty"`
+	TanggalKeberangkatan []TanggalKeberangkatanPaket `json:"tanggal_keberangkatan,omitempty" bson:"tanggal_keberangkatan,omitempty"`
+	Label                string                      `json:"label" bson:"-"`
+	CreatedAt            time.Time                   `json:"created_at" bson:"created_at"`
+	UpdatedAt            time.Time                   `json:"updated_at" bson:"updated_at"`
 }
 
 func (p *Paket) BuildLabel() {
