@@ -197,6 +197,13 @@ export async function deleteAdmin(id) {
   return res.json();
 }
 
+// Statistics
+export async function fetchStatistics() {
+  const res = await authFetch(`${BASE}/statistics`);
+  if (!res.ok) throw new Error('Gagal memuat statistik');
+  return res.json();
+}
+
 // Audit logs
 export async function fetchAuditLogs({ entity_type = '', page = 1, limit = 20 } = {}) {
   const params = new URLSearchParams();

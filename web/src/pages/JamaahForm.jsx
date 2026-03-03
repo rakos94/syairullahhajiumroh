@@ -105,7 +105,7 @@ export default function JamaahForm() {
       } else {
         await createJamaah(payload);
       }
-      navigate('/');
+      navigate('/jamaah');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -393,7 +393,7 @@ export default function JamaahForm() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/jamaah')}
             className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300"
           >
             Batal

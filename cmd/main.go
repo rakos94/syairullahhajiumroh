@@ -81,6 +81,7 @@ func main() {
 	paketHandler := handler.NewPaketHandler(paketRepo, jamaahRepo, auditLogRepo)
 	authHandler := handler.NewAuthHandler(adminRepo, cfg.JWTSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
+	statisticsHandler := handler.NewStatisticsHandler(jamaahRepo, paketRepo)
 
 	// Setup Gin router
 	r := gin.Default()
@@ -98,6 +99,7 @@ func main() {
 	jamaahHandler.RegisterRoutes(protected)
 	paketHandler.RegisterRoutes(protected)
 	auditLogHandler.RegisterRoutes(protected)
+	protected.GET("/statistics", statisticsHandler.GetStatistics)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
