@@ -1,71 +1,250 @@
 basePath: /api
 definitions:
-  model.Jamaah:
+  ErrorResponse:
     properties:
-      alamat:
+      error:
         type: string
-      batik_kbih_sudah_diterima:
-        type: boolean
-      batik_nasional_sudah_dijahit:
-        type: boolean
-      created_at:
+    type: object
+  MessageResponse:
+    properties:
+      message:
         type: string
-      foto_kk:
-        type: string
-      foto_koper_diterima:
-        type: string
-      foto_ktp:
-        type: string
-      foto_paspor:
-        type: string
+    type: object
+  model.Admin:
+    properties:
       id:
         type: string
-      jenis_kelamin:
+      username:
+        type: string
+      role:
         enum:
-        - laki-laki
-        - perempuan
+          - admin
+          - super
         type: string
-      keterangan:
+      created_at:
+        format: date-time
         type: string
-      koper_sudah_diterima:
-        type: boolean
+      updated_at:
+        format: date-time
+        type: string
+    type: object
+  model.Jamaah:
+    properties:
+      id:
+        type: string
       nama:
         type: string
       nik:
         type: string
+      nomor_paspor:
+        type: string
+      alamat:
+        type: string
       no_hp:
+        type: string
+      tempat_lahir:
+        type: string
+      tanggal_lahir:
+        format: date-time
+        type: string
+      jenis_kelamin:
+        enum:
+          - laki-laki
+          - perempuan
+        type: string
+      paket_id:
+        description: ObjectID referensi ke paket
+        type: string
+      paket:
+        $ref: '#/definitions/model.Paket'
+        description: Populated pada response GET
+      tanggal_keberangkatan:
+        $ref: '#/definitions/model.KeberangkatanJamaah'
+      status_pembayaran:
+        enum:
+          - belum_bayar
+          - dp
+          - lunas
         type: string
       no_rekening_haji:
         type: string
-      nomor_paspor:
+      tipe_bank:
         type: string
-      paket:
-        enum:
-        - haji
-        - umroh
+      batik_nasional_sudah_dijahit:
+        type: boolean
+      batik_kbih_sudah_diterima:
+        type: boolean
+      koper_sudah_diterima:
+        type: boolean
+      foto_ktp:
+        type: string
+      foto_kk:
+        type: string
+      foto_paspor:
         type: string
       pasfoto:
         type: string
-      status_pembayaran:
-        enum:
-        - belum_bayar
-        - dp
-        - lunas
+      foto_koper_diterima:
         type: string
-      tanggal_keberangkatan:
+      bukti_dp:
+        items:
+          $ref: '#/definitions/model.BuktiPembayaran'
+        type: array
+      bukti_pelunasan:
+        items:
+          $ref: '#/definitions/model.BuktiPembayaran'
+        type: array
+      keterangan:
         type: string
-      tanggal_lahir:
-        type: string
-      tipe_bank:
+      created_at:
+        format: date-time
         type: string
       updated_at:
+        format: date-time
         type: string
     required:
-    - jenis_kelamin
-    - nama
-    - nik
-    - paket
-    - status_pembayaran
+      - jenis_kelamin
+      - nama
+      - nik
+      - paket_id
+      - status_pembayaran
+    type: object
+  model.KeberangkatanJamaah:
+    properties:
+      nama:
+        description: Nama/label keberangkatan
+        type: string
+      tanggal:
+        description: Tanggal keberangkatan
+        format: date-time
+        type: string
+    type: object
+  model.BuktiPembayaran:
+    properties:
+      file:
+        description: Relative path ke file
+        type: string
+      nominal:
+        description: Nominal pembayaran
+        type: number
+    type: object
+  model.Paket:
+    properties:
+      id:
+        type: string
+      tipe:
+        enum:
+          - haji
+          - umroh
+        type: string
+      tahun:
+        type: integer
+      bulan:
+        description: Bulan (1-12, wajib untuk umroh)
+        type: integer
+      tanggal_keberangkatan:
+        items:
+          $ref: '#/definitions/model.TanggalKeberangkatanPaket'
+        type: array
+      label:
+        description: "Label otomatis, contoh: Haji 2025, Umroh Januari 2025"
+        type: string
+      created_at:
+        format: date-time
+        type: string
+      updated_at:
+        format: date-time
+        type: string
+    required:
+      - tipe
+      - tahun
+    type: object
+  model.TanggalKeberangkatanPaket:
+    properties:
+      nama:
+        description: Nama/label keberangkatan
+        type: string
+      tanggal:
+        description: Tanggal keberangkatan
+        format: date-time
+        type: string
+    type: object
+  model.AuditLog:
+    properties:
+      id:
+        type: string
+      admin_id:
+        type: string
+      admin_username:
+        type: string
+      entity_type:
+        enum:
+          - jamaah
+          - paket
+        type: string
+      entity_id:
+        type: string
+      entity_label:
+        type: string
+      action:
+        enum:
+          - create
+          - update
+          - delete
+          - upload
+          - delete_document
+        type: string
+      description:
+        type: string
+      changes:
+        items:
+          $ref: '#/definitions/model.FieldChange'
+        type: array
+      created_at:
+        format: date-time
+        type: string
+    type: object
+  model.FieldChange:
+    properties:
+      field:
+        description: Nama field yang berubah
+        type: string
+      old_value:
+        description: Nilai lama
+        type: string
+      new_value:
+        description: Nilai baru
+        type: string
+    type: object
+  PaginatedJamaah:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Jamaah'
+        type: array
+      total:
+        type: integer
+      page:
+        type: integer
+      limit:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  PaginatedAuditLog:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.AuditLog'
+        type: array
+      total:
+        type: integer
+      page:
+        type: integer
+      limit:
+        type: integer
+      total_pages:
+        type: integer
     type: object
 host: localhost:8080
 info:
@@ -73,49 +252,279 @@ info:
   description: API untuk manajemen data jamaah haji dan umroh
   title: Syairullah Haji & Umroh API
   version: "1.0"
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Masukkan token dengan format: Bearer {token}"
 paths:
-  /jamaah:
-    get:
-      description: Menampilkan daftar jamaah, bisa difilter berdasarkan paket
+  /auth/login:
+    post:
+      consumes:
+        - application/json
+      description: Login dengan username dan password, mendapatkan JWT token
       parameters:
-      - description: Filter berdasarkan paket
-        enum:
-        - haji
-        - umroh
-        in: query
-        name: paket
-        type: string
+        - description: Kredensial login
+          in: body
+          name: body
+          required: true
+          schema:
+            properties:
+              username:
+                example: admin
+                type: string
+              password:
+                example: admin123
+                type: string
+            required:
+              - username
+              - password
+            type: object
       produces:
-      - application/json
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Login admin
+      tags:
+        - auth
+  /auth/me:
+    get:
+      description: Menampilkan informasi admin yang sedang login
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Admin'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Info admin saat ini
+      tags:
+        - auth
+  /admin:
+    get:
+      description: Menampilkan daftar semua admin (hanya super admin)
+      produces:
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Jamaah'
+              $ref: '#/definitions/model.Admin'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: List semua jamaah
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: List semua admin
       tags:
-      - jamaah
+        - admin
     post:
       consumes:
-      - application/json
+        - application/json
+      description: Membuat admin baru (hanya super admin)
+      parameters:
+        - description: Data admin
+          in: body
+          name: body
+          required: true
+          schema:
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              role:
+                default: admin
+                enum:
+                  - admin
+                  - super
+                type: string
+            required:
+              - username
+              - password
+            type: object
+      produces:
+        - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Admin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict - username sudah digunakan
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Tambah admin baru
+      tags:
+        - admin
+  /admin/{id}:
+    put:
+      consumes:
+        - application/json
+      description: Memperbarui data admin (hanya super admin)
+      parameters:
+        - description: Admin ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Data admin yang diubah
+          in: body
+          name: body
+          required: true
+          schema:
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              role:
+                enum:
+                  - admin
+                  - super
+                type: string
+            type: object
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Admin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Update admin
+      tags:
+        - admin
+    delete:
+      description: Menghapus admin (hanya super admin, tidak bisa hapus super admin)
+      parameters:
+        - description: Admin ID
+          in: path
+          name: id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Hapus admin
+      tags:
+        - admin
+  /jamaah:
+    get:
+      description: Menampilkan daftar jamaah dengan pagination, bisa difilter berdasarkan paket
+      parameters:
+        - description: Filter berdasarkan paket ID
+          in: query
+          name: paket_id
+          type: string
+        - default: 1
+          description: Halaman
+          in: query
+          name: page
+          type: integer
+        - default: 10
+          description: Jumlah per halaman
+          in: query
+          name: limit
+          type: integer
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PaginatedJamaah'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: List semua jamaah
+      tags:
+        - jamaah
+    post:
+      consumes:
+        - application/json
       description: Membuat data jamaah haji/umroh baru
       parameters:
-      - description: Data jamaah
-        in: body
-        name: jamaah
-        required: true
-        schema:
-          $ref: '#/definitions/model.Jamaah'
+        - description: Data jamaah
+          in: body
+          name: jamaah
+          required: true
+          schema:
+            $ref: '#/definitions/model.Jamaah'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Created
@@ -124,67 +533,31 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "409":
-          description: Conflict
+          description: Conflict - NIK atau nomor paspor sudah ada
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
       summary: Tambah jamaah baru
       tags:
-      - jamaah
+        - jamaah
   /jamaah/{id}:
-    delete:
-      description: Menghapus data jamaah berdasarkan ID
-      parameters:
-      - description: Jamaah ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Hapus jamaah
-      tags:
-      - jamaah
     get:
       description: Menampilkan detail jamaah berdasarkan ID
       parameters:
-      - description: Jamaah ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -193,92 +566,190 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
       summary: Detail jamaah
       tags:
-      - jamaah
+        - jamaah
     put:
       consumes:
-      - application/json
+        - application/json
       description: Memperbarui data jamaah berdasarkan ID
       parameters:
-      - description: Jamaah ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Data jamaah
-        in: body
-        name: jamaah
-        required: true
-        schema:
-          $ref: '#/definitions/model.Jamaah'
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Data jamaah
+          in: body
+          name: jamaah
+          required: true
+          schema:
+            $ref: '#/definitions/model.Jamaah'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Update jamaah
+      tags:
+        - jamaah
+    delete:
+      description: Menghapus data jamaah berdasarkan ID
+      parameters:
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Hapus jamaah
+      tags:
+        - jamaah
+  /jamaah/{id}/upload/{docType}:
+    post:
+      consumes:
+        - multipart/form-data
+      description: "Upload file dokumen (KTP, KK, Paspor, Pasfoto, Koper Diterima, Bukti DP, Bukti Pelunasan) untuk jamaah"
+      parameters:
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Tipe dokumen
+          enum:
+            - ktp
+            - kk
+            - paspor
+            - pasfoto
+            - koper_diterima
+            - bukti_dp
+            - bukti_pelunasan
+          in: path
+          name: docType
+          required: true
+          type: string
+        - description: "File dokumen (jpg, jpeg, png, pdf)"
+          in: formData
+          name: file
+          required: true
+          type: file
+        - description: Nominal pembayaran (untuk bukti_dp dan bukti_pelunasan)
+          in: formData
+          name: nominal
+          type: number
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              path:
+                type: string
             type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
-        "409":
-          description: Conflict
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Update jamaah
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Upload dokumen jamaah
       tags:
-      - jamaah
+        - dokumen
   /jamaah/{id}/dokumen/{docType}:
     get:
-      description: Download file dokumen jamaah berdasarkan tipe
+      description: "Download file dokumen jamaah berdasarkan tipe. Untuk bukti_dp dan bukti_pelunasan, gunakan query parameter index."
       parameters:
-      - description: Jamaah ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Tipe dokumen
-        enum:
-        - ktp
-        - kk
-        - paspor
-        - pasfoto
-        - koper_diterima
-        in: path
-        name: docType
-        required: true
-        type: string
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Tipe dokumen
+          enum:
+            - ktp
+            - kk
+            - paspor
+            - pasfoto
+            - koper_diterima
+            - bukti_dp
+            - bukti_pelunasan
+          in: path
+          name: docType
+          required: true
+          type: string
+        - description: Index dokumen (untuk bukti_dp dan bukti_pelunasan)
+          in: query
+          name: index
+          type: integer
+        - description: Download sebagai attachment
+          in: query
+          name: download
+          type: boolean
       produces:
-      - application/octet-stream
+        - application/octet-stream
       responses:
         "200":
           description: OK
@@ -287,80 +758,310 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
       summary: Download dokumen jamaah
       tags:
-      - dokumen
-  /jamaah/{id}/upload/{docType}:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Upload file dokumen (KTP, KK, Paspor, Pasfoto, Koper Diterima)
-        untuk jamaah
+        - dokumen
+    delete:
+      description: "Menghapus dokumen multi-file (bukti_dp, bukti_pelunasan) berdasarkan index"
       parameters:
-      - description: Jamaah ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Tipe dokumen
-        enum:
-        - ktp
-        - kk
-        - paspor
-        - pasfoto
-        - koper_diterima
-        in: path
-        name: docType
-        required: true
-        type: string
-      - description: File dokumen (jpg, jpeg, png, pdf)
-        in: formData
-        name: file
-        required: true
-        type: file
+        - description: Jamaah ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Tipe dokumen (hanya multi-file)
+          enum:
+            - bukti_dp
+            - bukti_pelunasan
+          in: path
+          name: docType
+          required: true
+          type: string
+        - description: Index dokumen yang akan dihapus
+          in: query
+          name: index
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/MessageResponse'
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Upload dokumen jamaah
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Hapus dokumen jamaah
       tags:
-      - dokumen
+        - dokumen
+  /paket:
+    get:
+      description: "Menampilkan daftar paket, bisa difilter berdasarkan tipe"
+      parameters:
+        - description: Filter berdasarkan tipe
+          enum:
+            - haji
+            - umroh
+          in: query
+          name: tipe
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Paket'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: List semua paket
+      tags:
+        - paket
+    post:
+      consumes:
+        - application/json
+      description: Membuat data paket haji/umroh baru
+      parameters:
+        - description: Data paket
+          in: body
+          name: paket
+          required: true
+          schema:
+            $ref: '#/definitions/model.Paket'
+      produces:
+        - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Paket'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Tambah paket baru
+      tags:
+        - paket
+  /paket/{id}:
+    get:
+      description: Menampilkan detail paket berdasarkan ID
+      parameters:
+        - description: Paket ID
+          in: path
+          name: id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Paket'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Detail paket
+      tags:
+        - paket
+    put:
+      consumes:
+        - application/json
+      description: Memperbarui data paket berdasarkan ID
+      parameters:
+        - description: Paket ID
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: Data paket
+          in: body
+          name: paket
+          required: true
+          schema:
+            $ref: '#/definitions/model.Paket'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Update paket
+      tags:
+        - paket
+    delete:
+      description: Menghapus data paket berdasarkan ID
+      parameters:
+        - description: Paket ID
+          in: path
+          name: id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Hapus paket
+      tags:
+        - paket
+  /audit-logs:
+    get:
+      description: Menampilkan daftar riwayat aktivitas dengan pagination dan filter
+      parameters:
+        - description: Filter berdasarkan tipe entitas
+          enum:
+            - jamaah
+            - paket
+          in: query
+          name: entity_type
+          type: string
+        - default: 1
+          description: Halaman
+          in: query
+          name: page
+          type: integer
+        - default: 20
+          description: Jumlah per halaman
+          in: query
+          name: limit
+          type: integer
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PaginatedAuditLog'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: List riwayat aktivitas
+      tags:
+        - audit-log
+  /audit-logs/{entityType}/{entityId}:
+    get:
+      description: Menampilkan riwayat aktivitas untuk entitas tertentu
+      parameters:
+        - description: Tipe entitas
+          enum:
+            - jamaah
+            - paket
+          in: path
+          name: entityType
+          required: true
+          type: string
+        - description: Entity ID
+          in: path
+          name: entityId
+          required: true
+          type: string
+        - default: 1
+          description: Halaman
+          in: query
+          name: page
+          type: integer
+        - default: 20
+          description: Jumlah per halaman
+          in: query
+          name: limit
+          type: integer
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PaginatedAuditLog'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - BearerAuth: []
+      summary: Riwayat aktivitas per entitas
+      tags:
+        - audit-log
 swagger: "2.0"

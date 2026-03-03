@@ -8,27 +8,121 @@
     },
     "host": "localhost:8080",
     "basePath": "/api",
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Masukkan token dengan format: Bearer {token}"
+        }
+    },
     "paths": {
-        "/jamaah": {
-            "get": {
-                "description": "Menampilkan daftar jamaah, bisa difilter berdasarkan paket",
+        "/auth/login": {
+            "post": {
+                "description": "Login dengan username dan password, mendapatkan JWT token",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "jamaah"
+                    "auth"
                 ],
-                "summary": "List semua jamaah",
+                "summary": "Login admin",
                 "parameters": [
                     {
-                        "enum": [
-                            "haji",
-                            "umroh"
-                        ],
-                        "type": "string",
-                        "description": "Filter berdasarkan paket",
-                        "name": "paket",
-                        "in": "query"
+                        "description": "Kredensial login",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "required": ["username", "password"],
+                            "properties": {
+                                "username": {
+                                    "type": "string",
+                                    "example": "admin"
+                                },
+                                "password": {
+                                    "type": "string",
+                                    "example": "admin123"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "token": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "description": "Menampilkan informasi admin yang sedang login",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Info admin saat ini",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Admin"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin": {
+            "get": {
+                "description": "Menampilkan daftar semua admin (hanya super admin)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List semua admin",
+                "security": [
+                    {
+                        "BearerAuth": []
                     }
                 ],
                 "responses": {
@@ -37,17 +131,268 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Jamaah"
+                                "$ref": "#/definitions/model.Admin"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Membuat admin baru (hanya super admin)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Tambah admin baru",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "description": "Data admin",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "required": ["username", "password"],
+                            "properties": {
+                                "username": {
+                                    "type": "string"
+                                },
+                                "password": {
+                                    "type": "string"
+                                },
+                                "role": {
+                                    "type": "string",
+                                    "enum": ["admin", "super"],
+                                    "default": "admin"
+                                }
                             }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Admin"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict - username sudah digunakan",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/{id}": {
+            "put": {
+                "description": "Memperbarui data admin (hanya super admin)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Update admin",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data admin yang diubah",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "username": {
+                                    "type": "string"
+                                },
+                                "password": {
+                                    "type": "string"
+                                },
+                                "role": {
+                                    "type": "string",
+                                    "enum": ["admin", "super"]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Admin"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Menghapus admin (hanya super admin, tidak bisa hapus super admin)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Hapus admin",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jamaah": {
+            "get": {
+                "description": "Menampilkan daftar jamaah dengan pagination, bisa difilter berdasarkan paket",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "List semua jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan paket ID",
+                        "name": "paket_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman",
+                        "name": "page",
+                        "in": "query",
+                        "default": 1
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah per halaman",
+                        "name": "limit",
+                        "in": "query",
+                        "default": 10
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PaginatedJamaah"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -64,6 +409,11 @@
                     "jamaah"
                 ],
                 "summary": "Tambah jamaah baru",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "parameters": [
                     {
                         "description": "Data jamaah",
@@ -85,28 +435,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Conflict - NIK atau nomor paspor sudah ada",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -122,6 +463,11 @@
                     "jamaah"
                 ],
                 "summary": "Detail jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "parameters": [
                     {
                         "type": "string",
@@ -141,28 +487,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -179,6 +516,11 @@
                     "jamaah"
                 ],
                 "summary": "Update jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "parameters": [
                     {
                         "type": "string",
@@ -201,37 +543,31 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -245,6 +581,11 @@
                     "jamaah"
                 ],
                 "summary": "Hapus jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "parameters": [
                     {
                         "type": "string",
@@ -258,28 +599,117 @@
                     "200": {
                         "description": "OK",
                         "schema": {
+                            "$ref": "#/definitions/MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jamaah/{id}/upload/{docType}": {
+            "post": {
+                "description": "Upload file dokumen (KTP, KK, Paspor, Pasfoto, Koper Diterima, Bukti DP, Bukti Pelunasan) untuk jamaah",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dokumen"
+                ],
+                "summary": "Upload dokumen jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "ktp",
+                            "kk",
+                            "paspor",
+                            "pasfoto",
+                            "koper_diterima",
+                            "bukti_dp",
+                            "bukti_pelunasan"
+                        ],
+                        "type": "string",
+                        "description": "Tipe dokumen",
+                        "name": "docType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File dokumen (jpg, jpeg, png, pdf)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Nominal pembayaran (untuk bukti_dp dan bukti_pelunasan)",
+                        "name": "nominal",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "path": {
+                                    "type": "string"
+                                }
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -287,7 +717,7 @@
         },
         "/jamaah/{id}/dokumen/{docType}": {
             "get": {
-                "description": "Download file dokumen jamaah berdasarkan tipe",
+                "description": "Download file dokumen jamaah berdasarkan tipe. Untuk bukti_dp dan bukti_pelunasan, gunakan query parameter index.",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -309,13 +739,27 @@
                             "kk",
                             "paspor",
                             "pasfoto",
-                            "koper_diterima"
+                            "koper_diterima",
+                            "bukti_dp",
+                            "bukti_pelunasan"
                         ],
                         "type": "string",
                         "description": "Tipe dokumen",
                         "name": "docType",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Index dokumen (untuk bukti_dp dan bukti_pelunasan)",
+                        "name": "index",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Download sebagai attachment",
+                        "name": "download",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -328,46 +772,37 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
-            }
-        },
-        "/jamaah/{id}/upload/{docType}": {
-            "post": {
-                "description": "Upload file dokumen (KTP, KK, Paspor, Pasfoto, Koper Diterima) untuk jamaah",
-                "consumes": [
-                    "multipart/form-data"
-                ],
+            },
+            "delete": {
+                "description": "Menghapus dokumen multi-file (bukti_dp, bukti_pelunasan) berdasarkan index",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "dokumen"
                 ],
-                "summary": "Upload dokumen jamaah",
+                "summary": "Hapus dokumen jamaah",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "parameters": [
                     {
                         "type": "string",
@@ -378,23 +813,20 @@
                     },
                     {
                         "enum": [
-                            "ktp",
-                            "kk",
-                            "paspor",
-                            "pasfoto",
-                            "koper_diterima"
+                            "bukti_dp",
+                            "bukti_pelunasan"
                         ],
                         "type": "string",
-                        "description": "Tipe dokumen",
+                        "description": "Tipe dokumen (hanya multi-file)",
                         "name": "docType",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "File dokumen (jpg, jpeg, png, pdf)",
-                        "name": "file",
-                        "in": "formData",
+                        "type": "integer",
+                        "description": "Index dokumen yang akan dihapus",
+                        "name": "index",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -402,37 +834,412 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/paket": {
+            "get": {
+                "description": "Menampilkan daftar paket, bisa difilter berdasarkan tipe",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "paket"
+                ],
+                "summary": "List semua paket",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "enum": [
+                            "haji",
+                            "umroh"
+                        ],
+                        "type": "string",
+                        "description": "Filter berdasarkan tipe",
+                        "name": "tipe",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Paket"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Membuat data paket haji/umroh baru",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "paket"
+                ],
+                "summary": "Tambah paket baru",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "description": "Data paket",
+                        "name": "paket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Paket"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Paket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/paket/{id}": {
+            "get": {
+                "description": "Menampilkan detail paket berdasarkan ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "paket"
+                ],
+                "summary": "Detail paket",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Paket ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Paket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Memperbarui data paket berdasarkan ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "paket"
+                ],
+                "summary": "Update paket",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Paket ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data paket",
+                        "name": "paket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Paket"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Menghapus data paket berdasarkan ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "paket"
+                ],
+                "summary": "Hapus paket",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Paket ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit-logs": {
+            "get": {
+                "description": "Menampilkan daftar riwayat aktivitas dengan pagination dan filter",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit-log"
+                ],
+                "summary": "List riwayat aktivitas",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "enum": [
+                            "jamaah",
+                            "paket"
+                        ],
+                        "type": "string",
+                        "description": "Filter berdasarkan tipe entitas",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman",
+                        "name": "page",
+                        "in": "query",
+                        "default": 1
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah per halaman",
+                        "name": "limit",
+                        "in": "query",
+                        "default": 20
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PaginatedAuditLog"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit-logs/{entityType}/{entityId}": {
+            "get": {
+                "description": "Menampilkan riwayat aktivitas untuk entitas tertentu",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit-log"
+                ],
+                "summary": "Riwayat aktivitas per entitas",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "enum": [
+                            "jamaah",
+                            "paket"
+                        ],
+                        "type": "string",
+                        "description": "Tipe entitas",
+                        "name": "entityType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entity ID",
+                        "name": "entityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Halaman",
+                        "name": "page",
+                        "in": "query",
+                        "default": 1
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Jumlah per halaman",
+                        "name": "limit",
+                        "in": "query",
+                        "default": 20
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PaginatedAuditLog"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -440,42 +1247,79 @@
         }
     },
     "definitions": {
+        "ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Admin": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": ["admin", "super"]
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
         "model.Jamaah": {
             "type": "object",
             "required": [
                 "jenis_kelamin",
                 "nama",
                 "nik",
-                "paket",
+                "paket_id",
                 "status_pembayaran"
             ],
             "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nama": {
+                    "type": "string"
+                },
+                "nik": {
+                    "type": "string"
+                },
+                "nomor_paspor": {
+                    "type": "string"
+                },
                 "alamat": {
                     "type": "string"
                 },
-                "batik_kbih_sudah_diterima": {
-                    "type": "boolean"
-                },
-                "batik_nasional_sudah_dijahit": {
-                    "type": "boolean"
-                },
-                "created_at": {
+                "no_hp": {
                     "type": "string"
                 },
-                "foto_kk": {
+                "tempat_lahir": {
                     "type": "string"
                 },
-                "foto_koper_diterima": {
-                    "type": "string"
-                },
-                "foto_ktp": {
-                    "type": "string"
-                },
-                "foto_paspor": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
+                "tanggal_lahir": {
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "jenis_kelamin": {
                     "type": "string",
@@ -484,36 +1328,16 @@
                         "perempuan"
                     ]
                 },
-                "keterangan": {
-                    "type": "string"
-                },
-                "koper_sudah_diterima": {
-                    "type": "boolean"
-                },
-                "nama": {
-                    "type": "string"
-                },
-                "nik": {
-                    "type": "string"
-                },
-                "no_hp": {
-                    "type": "string"
-                },
-                "no_rekening_haji": {
-                    "type": "string"
-                },
-                "nomor_paspor": {
-                    "type": "string"
+                "paket_id": {
+                    "type": "string",
+                    "description": "ObjectID referensi ke paket"
                 },
                 "paket": {
-                    "type": "string",
-                    "enum": [
-                        "haji",
-                        "umroh"
-                    ]
+                    "$ref": "#/definitions/model.Paket",
+                    "description": "Populated pada response GET"
                 },
-                "pasfoto": {
-                    "type": "string"
+                "tanggal_keberangkatan": {
+                    "$ref": "#/definitions/model.KeberangkatanJamaah"
                 },
                 "status_pembayaran": {
                     "type": "string",
@@ -523,17 +1347,247 @@
                         "lunas"
                     ]
                 },
-                "tanggal_keberangkatan": {
-                    "type": "string"
-                },
-                "tanggal_lahir": {
+                "no_rekening_haji": {
                     "type": "string"
                 },
                 "tipe_bank": {
                     "type": "string"
                 },
-                "updated_at": {
+                "batik_nasional_sudah_dijahit": {
+                    "type": "boolean"
+                },
+                "batik_kbih_sudah_diterima": {
+                    "type": "boolean"
+                },
+                "koper_sudah_diterima": {
+                    "type": "boolean"
+                },
+                "foto_ktp": {
                     "type": "string"
+                },
+                "foto_kk": {
+                    "type": "string"
+                },
+                "foto_paspor": {
+                    "type": "string"
+                },
+                "pasfoto": {
+                    "type": "string"
+                },
+                "foto_koper_diterima": {
+                    "type": "string"
+                },
+                "bukti_dp": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.BuktiPembayaran"
+                    }
+                },
+                "bukti_pelunasan": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.BuktiPembayaran"
+                    }
+                },
+                "keterangan": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "model.KeberangkatanJamaah": {
+            "type": "object",
+            "properties": {
+                "nama": {
+                    "type": "string",
+                    "description": "Nama/label keberangkatan"
+                },
+                "tanggal": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Tanggal keberangkatan"
+                }
+            }
+        },
+        "model.BuktiPembayaran": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "description": "Relative path ke file"
+                },
+                "nominal": {
+                    "type": "number",
+                    "description": "Nominal pembayaran"
+                }
+            }
+        },
+        "model.Paket": {
+            "type": "object",
+            "required": [
+                "tipe",
+                "tahun"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "tipe": {
+                    "type": "string",
+                    "enum": [
+                        "haji",
+                        "umroh"
+                    ]
+                },
+                "tahun": {
+                    "type": "integer"
+                },
+                "bulan": {
+                    "type": "integer",
+                    "description": "Bulan (1-12, wajib untuk umroh)"
+                },
+                "tanggal_keberangkatan": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TanggalKeberangkatanPaket"
+                    }
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Label otomatis, contoh: Haji 2025, Umroh Januari 2025"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "model.TanggalKeberangkatanPaket": {
+            "type": "object",
+            "properties": {
+                "nama": {
+                    "type": "string",
+                    "description": "Nama/label keberangkatan"
+                },
+                "tanggal": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Tanggal keberangkatan"
+                }
+            }
+        },
+        "model.AuditLog": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "admin_id": {
+                    "type": "string"
+                },
+                "admin_username": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "type": "string",
+                    "enum": ["jamaah", "paket"]
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "entity_label": {
+                    "type": "string"
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["create", "update", "delete", "upload", "delete_document"]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.FieldChange"
+                    }
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "model.FieldChange": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "description": "Nama field yang berubah"
+                },
+                "old_value": {
+                    "type": "string",
+                    "description": "Nilai lama"
+                },
+                "new_value": {
+                    "type": "string",
+                    "description": "Nilai baru"
+                }
+            }
+        },
+        "PaginatedJamaah": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Jamaah"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "PaginatedAuditLog": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AuditLog"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         }
