@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type JamaahRepository struct {
@@ -50,27 +51,33 @@ func (r *JamaahRepository) Create(ctx context.Context, jamaah *model.Jamaah) err
 	return nil
 }
 
-func (r *JamaahRepository) FindAll(ctx context.Context, paket string) ([]model.Jamaah, error) {
+func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.ObjectID, page, limit int) ([]model.Jamaah, int64, error) {
 	filter := bson.M{"deleted_at": nil}
-	if paket != "" {
-		filter["paket"] = paket
+	if paketID != nil {
+		filter["paket_id"] = *paketID
 	}
 
-	cursor, err := r.collection.Find(ctx, filter)
+	total, err := r.collection.CountDocuments(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	opts := options.Find().SetSkip(int64((page - 1) * limit)).SetLimit(int64(limit))
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
 	var results []model.Jamaah
 	if err := cursor.All(ctx, &results); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if results == nil {
 		results = []model.Jamaah{}
 	}
-	return results, nil
+	return results, total, nil
 }
 
 func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*model.Jamaah, error) {

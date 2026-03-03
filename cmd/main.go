@@ -61,12 +61,15 @@ func main() {
 
 	// Setup repository and handler
 	jamaahRepo := repository.NewJamaahRepository(db)
-	jamaahHandler := handler.NewJamaahHandler(jamaahRepo, cfg.UploadDir)
+	paketRepo := repository.NewPaketRepository(db)
+	jamaahHandler := handler.NewJamaahHandler(jamaahRepo, paketRepo, cfg.UploadDir)
+	paketHandler := handler.NewPaketHandler(paketRepo)
 
 	// Setup Gin router
 	r := gin.Default()
 	api := r.Group("/api")
 	jamaahHandler.RegisterRoutes(api)
+	paketHandler.RegisterRoutes(api)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

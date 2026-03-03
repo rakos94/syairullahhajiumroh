@@ -1,9 +1,52 @@
 const BASE = '/api';
 
-export async function fetchJamaah(paket = '') {
-  const url = paket ? `${BASE}/jamaah?paket=${paket}` : `${BASE}/jamaah`;
-  const res = await fetch(url);
+export async function fetchJamaah({ paket_id = '', page = 1, limit = 10 } = {}) {
+  const params = new URLSearchParams();
+  if (paket_id) params.set('paket_id', paket_id);
+  params.set('page', page);
+  params.set('limit', limit);
+  const res = await fetch(`${BASE}/jamaah?${params}`);
   if (!res.ok) throw new Error('Gagal memuat data jamaah');
+  return res.json();
+}
+
+export async function fetchPaketList(tipe = '') {
+  const params = new URLSearchParams();
+  if (tipe) params.set('tipe', tipe);
+  const res = await fetch(`${BASE}/paket?${params}`);
+  if (!res.ok) throw new Error('Gagal memuat data paket');
+  return res.json();
+}
+
+export async function createPaket(data) {
+  const res = await fetch(`${BASE}/paket`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal membuat paket');
+  }
+  return res.json();
+}
+
+export async function updatePaket(id, data) {
+  const res = await fetch(`${BASE}/paket/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal memperbarui paket');
+  }
+  return res.json();
+}
+
+export async function deletePaket(id) {
+  const res = await fetch(`${BASE}/paket/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Gagal menghapus paket');
   return res.json();
 }
 

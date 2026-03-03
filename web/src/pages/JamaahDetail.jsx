@@ -68,7 +68,7 @@ export default function JamaahDetail() {
     ['No HP', jamaah.no_hp || '-'],
     ['Tanggal Lahir', formatDate(jamaah.tanggal_lahir)],
     ['Jenis Kelamin', jamaah.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'],
-    ['Paket', jamaah.paket?.charAt(0).toUpperCase() + jamaah.paket?.slice(1)],
+    ['Paket', jamaah.paket?.label || '-'],
     ['Tanggal Keberangkatan', formatDate(jamaah.tanggal_keberangkatan)],
     ['No Rekening Haji', jamaah.no_rekening_haji || '-'],
     ['Tipe Bank', jamaah.tipe_bank || '-'],

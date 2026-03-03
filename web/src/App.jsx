@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import JamaahList from './pages/JamaahList';
 import JamaahForm from './pages/JamaahForm';
 import JamaahDetail from './pages/JamaahDetail';
+import PaketList from './pages/PaketList';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/jamaah/new" element={<JamaahForm />} />
         <Route path="/jamaah/:id/edit" element={<JamaahForm />} />
         <Route path="/jamaah/:id" element={<JamaahDetail />} />
+        <Route path="/paket" element={<PaketList />} />
       </Routes>
     </Layout>
   );

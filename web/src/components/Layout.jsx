@@ -20,17 +20,17 @@ export default function Layout({ children }) {
                     : 'hover:bg-emerald-600'
                 }`}
               >
-                Daftar Jamaah
+                Jamaah
               </Link>
               <Link
-                to="/jamaah/new"
+                to="/paket"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  location.pathname === '/jamaah/new'
+                  location.pathname === '/paket'
                     ? 'bg-emerald-800'
                     : 'hover:bg-emerald-600'
                 }`}
               >
-                Tambah Jamaah
+                Paket
               </Link>
             </div>
           </div>

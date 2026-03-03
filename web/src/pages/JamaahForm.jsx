@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createJamaah, fetchJamaahById, updateJamaah } from '../api';
+import { createJamaah, fetchJamaahById, updateJamaah, fetchPaketList } from '../api';
 
 const emptyForm = {
   nama: '',
@@ -10,7 +10,7 @@ const emptyForm = {
   no_hp: '',
   tanggal_lahir: '',
   jenis_kelamin: 'laki-laki',
-  paket: 'haji',
+  paket_id: '',
   tanggal_keberangkatan: '',
   status_pembayaran: 'belum_bayar',
   no_rekening_haji: '',
@@ -64,8 +64,13 @@ export default function JamaahForm() {
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState(emptyForm);
+  const [paketOptions, setPaketOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchPaketList().then(setPaketOptions).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isEdit) {
@@ -80,7 +85,7 @@ export default function JamaahForm() {
             no_hp: data.no_hp || '',
             tanggal_lahir: isoToDmy(data.tanggal_lahir),
             jenis_kelamin: data.jenis_kelamin || 'laki-laki',
-            paket: data.paket || 'haji',
+            paket_id: data.paket_id || '',
             tanggal_keberangkatan: isoToDmy(data.tanggal_keberangkatan),
             status_pembayaran: data.status_pembayaran || 'belum_bayar',
             no_rekening_haji: data.no_rekening_haji || '',
@@ -249,13 +254,18 @@ export default function JamaahForm() {
               Paket <span className="text-red-500">*</span>
             </label>
             <select
-              name="paket"
-              value={form.paket}
+              name="paket_id"
+              value={form.paket_id}
               onChange={handleChange}
+              required
               className={inputClass}
             >
-              <option value="haji">Haji</option>
-              <option value="umroh">Umroh</option>
+              <option value="">-- Pilih Paket --</option>
+              {paketOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
             </select>
           </div>
 

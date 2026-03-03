@@ -2,9 +2,11 @@ package handler
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"syairullahhajiumroh/internal/model"
@@ -16,11 +18,11 @@ import (
 )
 
 var validDocTypes = map[string]string{
-	"ktp":             "foto_ktp",
-	"kk":              "foto_kk",
-	"paspor":          "foto_paspor",
-	"pasfoto":         "pasfoto",
-	"koper_diterima":  "foto_koper_diterima",
+	"ktp":            "foto_ktp",
+	"kk":             "foto_kk",
+	"paspor":         "foto_paspor",
+	"pasfoto":        "pasfoto",
+	"koper_diterima": "foto_koper_diterima",
 }
 
 var allowedExtensions = map[string]bool{
@@ -32,11 +34,46 @@ var allowedExtensions = map[string]bool{
 
 type JamaahHandler struct {
 	repo      *repository.JamaahRepository
+	paketRepo *repository.PaketRepository
 	uploadDir string
 }
 
-func NewJamaahHandler(repo *repository.JamaahRepository, uploadDir string) *JamaahHandler {
-	return &JamaahHandler{repo: repo, uploadDir: uploadDir}
+func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, uploadDir string) *JamaahHandler {
+	return &JamaahHandler{repo: repo, paketRepo: paketRepo, uploadDir: uploadDir}
+}
+
+// populatePaket populates the transient Paket field for a slice of jamaah.
+func (h *JamaahHandler) populatePaket(c *gin.Context, list []model.Jamaah) {
+	ids := make(map[primitive.ObjectID]struct{})
+	for _, j := range list {
+		if !j.PaketID.IsZero() {
+			ids[j.PaketID] = struct{}{}
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+
+	idSlice := make([]primitive.ObjectID, 0, len(ids))
+	for id := range ids {
+		idSlice = append(idSlice, id)
+	}
+
+	pakets, err := h.paketRepo.FindByIDs(c.Request.Context(), idSlice)
+	if err != nil {
+		return
+	}
+
+	paketMap := make(map[primitive.ObjectID]*model.Paket, len(pakets))
+	for i := range pakets {
+		paketMap[pakets[i].ID] = &pakets[i]
+	}
+
+	for i := range list {
+		if p, ok := paketMap[list[i].PaketID]; ok {
+			list[i].Paket = p
+		}
+	}
 }
 
 // Create godoc
@@ -58,6 +95,13 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Validate paket_id exists
+	paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
+		return
+	}
+
 	if err := h.repo.Create(c.Request.Context(), &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "jamaah dengan NIK atau nomor paspor tersebut sudah ada"})
@@ -67,28 +111,55 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		return
 	}
 
+	jamaah.Paket = paket
 	c.JSON(http.StatusCreated, jamaah)
 }
 
 // FindAll godoc
 // @Summary      List semua jamaah
-// @Description  Menampilkan daftar jamaah, bisa difilter berdasarkan paket
+// @Description  Menampilkan daftar jamaah dengan pagination, bisa difilter berdasarkan paket
 // @Tags         jamaah
 // @Produce      json
-// @Param        paket  query     string  false  "Filter berdasarkan paket"  Enums(haji, umroh)
-// @Success      200    {array}   model.Jamaah
-// @Failure      500    {object}  map[string]string
+// @Param        paket_id  query     string  false  "Filter berdasarkan paket ID"
+// @Param        page      query     int     false  "Halaman"       default(1)
+// @Param        limit     query     int     false  "Jumlah per halaman"  default(10)
+// @Success      200       {object}  map[string]interface{}
+// @Failure      500       {object}  map[string]string
 // @Router       /jamaah [get]
 func (h *JamaahHandler) FindAll(c *gin.Context) {
-	paket := c.Query("paket")
+	var paketID *primitive.ObjectID
+	if pidStr := c.Query("paket_id"); pidStr != "" {
+		if oid, err := primitive.ObjectIDFromHex(pidStr); err == nil {
+			paketID = &oid
+		}
+	}
 
-	results, err := h.repo.FindAll(c.Request.Context(), paket)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	results, total, err := h.repo.FindAll(c.Request.Context(), paketID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, results)
+	h.populatePaket(c, results)
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":        results,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
 }
 
 // FindByID godoc
@@ -119,6 +190,13 @@ func (h *JamaahHandler) FindByID(c *gin.Context) {
 		return
 	}
 
+	// Populate paket
+	if !jamaah.PaketID.IsZero() {
+		if paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err == nil {
+			jamaah.Paket = paket
+		}
+	}
+
 	c.JSON(http.StatusOK, jamaah)
 }
 
@@ -145,6 +223,12 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 	var jamaah model.Jamaah
 	if err := c.ShouldBindJSON(&jamaah); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate paket_id exists
+	if _, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
 		return
 	}
 

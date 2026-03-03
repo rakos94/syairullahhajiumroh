@@ -59,6 +59,30 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return err
 			},
 		},
+		{
+			Name: "003_create_paket_indexes",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("paket")
+				_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys: bson.D{
+						{Key: "tipe", Value: 1},
+						{Key: "tahun", Value: 1},
+						{Key: "bulan", Value: 1},
+					},
+					Options: options.Index().SetUnique(true),
+				})
+				if err != nil {
+					return err
+				}
+
+				// Add paket_id index on jamaah
+				jamaahColl := db.Collection("jamaah")
+				_, err = jamaahColl.Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys: bson.D{{Key: "paket_id", Value: 1}},
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {

@@ -15,7 +15,8 @@ type Jamaah struct {
 	NoHP                      string             `json:"no_hp" bson:"no_hp"`
 	TanggalLahir              time.Time          `json:"tanggal_lahir" bson:"tanggal_lahir"`
 	JenisKelamin              string             `json:"jenis_kelamin" bson:"jenis_kelamin" binding:"required,oneof=laki-laki perempuan"`
-	Paket                     string             `json:"paket" bson:"paket" binding:"required,oneof=haji umroh"`
+	PaketID                   primitive.ObjectID `json:"paket_id" bson:"paket_id" binding:"required"`
+	Paket                     *Paket             `json:"paket,omitempty" bson:"-"`
 	TanggalKeberangkatan      time.Time          `json:"tanggal_keberangkatan" bson:"tanggal_keberangkatan"`
 	StatusPembayaran          string             `json:"status_pembayaran" bson:"status_pembayaran" binding:"required,oneof=belum_bayar dp lunas"`
 	NoRekeningHaji            string             `json:"no_rekening_haji" bson:"no_rekening_haji"`
