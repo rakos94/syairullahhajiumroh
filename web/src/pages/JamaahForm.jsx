@@ -22,41 +22,18 @@ const emptyForm = {
   keterangan: '',
 };
 
-// Convert ISO date string to dd/mm/yyyy
-function isoToDmy(dateStr) {
+// Convert ISO date string to yyyy-mm-dd for <input type="date">
+function isoToDateInput(dateStr) {
   if (!dateStr || dateStr === '0001-01-01T00:00:00Z') return '';
-  const d = dateStr.slice(0, 10); // yyyy-mm-dd
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
+  return dateStr.slice(0, 10);
 }
 
-// Convert dd/mm/yyyy to ISO string, returns null if invalid
-function dmyToIso(dmy) {
-  if (!dmy) return null;
-  const match = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
+// Convert yyyy-mm-dd to ISO string
+function dateInputToIso(val) {
+  if (!val) return null;
+  const date = new Date(`${val}T00:00:00Z`);
   if (isNaN(date.getTime())) return null;
   return date.toISOString();
-}
-
-// Auto-format date input: add slashes as user types
-function handleDateInput(value, prev) {
-  // Only allow digits and slashes
-  let cleaned = value.replace(/[^\d/]/g, '');
-
-  // Auto-insert slashes
-  const digits = cleaned.replace(/\//g, '');
-  if (digits.length <= 2) {
-    cleaned = digits;
-  } else if (digits.length <= 4) {
-    cleaned = digits.slice(0, 2) + '/' + digits.slice(2);
-  } else {
-    cleaned = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8);
-  }
-
-  return cleaned;
 }
 
 export default function JamaahForm() {
@@ -85,7 +62,7 @@ export default function JamaahForm() {
             alamat: data.alamat || '',
             no_hp: data.no_hp || '',
             tempat_lahir: data.tempat_lahir || '',
-            tanggal_lahir: isoToDmy(data.tanggal_lahir),
+            tanggal_lahir: isoToDateInput(data.tanggal_lahir),
             jenis_kelamin: data.jenis_kelamin || 'laki-laki',
             paket_id: data.paket_id || '',
             tanggal_keberangkatan: data.tanggal_keberangkatan || null,
@@ -103,17 +80,8 @@ export default function JamaahForm() {
     }
   }, [id, isEdit]);
 
-  const dateFields = ['tanggal_lahir'];
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (dateFields.includes(name)) {
-      setForm((prev) => ({
-        ...prev,
-        [name]: handleDateInput(value, prev[name]),
-      }));
-      return;
-    }
     setForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -127,7 +95,7 @@ export default function JamaahForm() {
 
     const payload = {
       ...form,
-      tanggal_lahir: dmyToIso(form.tanggal_lahir) || undefined,
+      tanggal_lahir: dateInputToIso(form.tanggal_lahir) || undefined,
       tanggal_keberangkatan: form.tanggal_keberangkatan || undefined,
     };
 
@@ -175,7 +143,11 @@ export default function JamaahForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); }}
+        className="bg-white shadow rounded-lg p-6"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>
@@ -247,11 +219,10 @@ export default function JamaahForm() {
           <div>
             <label className={labelClass}>Tanggal Lahir</label>
             <input
+              type="date"
               name="tanggal_lahir"
               value={form.tanggal_lahir}
               onChange={handleChange}
-              placeholder="dd/mm/yyyy"
-              maxLength={10}
               className={inputClass}
             />
           </div>
@@ -314,18 +285,17 @@ export default function JamaahForm() {
               </select>
             ) : (
               <input
+                type="date"
                 name="tanggal_keberangkatan_manual"
-                value={form.tanggal_keberangkatan ? isoToDmy(form.tanggal_keberangkatan.tanggal) : ''}
+                value={form.tanggal_keberangkatan ? isoToDateInput(form.tanggal_keberangkatan.tanggal) : ''}
                 onChange={(e) => {
-                  const val = handleDateInput(e.target.value, '');
-                  const iso = dmyToIso(val);
+                  const val = e.target.value;
+                  const iso = dateInputToIso(val);
                   setForm((prev) => ({
                     ...prev,
                     tanggal_keberangkatan: val ? { tanggal: iso || val } : null,
                   }));
                 }}
-                placeholder="dd/mm/yyyy"
-                maxLength={10}
                 className={inputClass}
               />
             )}
