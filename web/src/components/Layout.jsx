@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,6 +45,7 @@ export default function Layout({ children }) {
               >
                 Admin
               </Link>
+              <span className="text-sm text-emerald-200">{user?.username}</span>
               <button
                 onClick={() => { logout(); navigate('/login'); }}
                 className="px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600"

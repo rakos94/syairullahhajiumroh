@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    setLoading(true);
     fetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
