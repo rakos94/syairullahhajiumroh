@@ -531,8 +531,12 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 		filePath = filepath.Join(h.uploadDir, relativePath)
 	}
 
+	ext := filepath.Ext(filePath)
+	downloadName := fmt.Sprintf("%s_%s%s", jamaah.NIK, docType, ext)
 	if c.Query("download") == "true" {
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(filePath)))
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", downloadName))
+	} else {
+		c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", downloadName))
 	}
 	c.File(filePath)
 }
