@@ -26,6 +26,7 @@ export default function JamaahDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadMsg, setUploadMsg] = useState('');
+  const [lightbox, setLightbox] = useState(null);
 
   const loadData = async () => {
     try {
@@ -137,7 +138,10 @@ export default function JamaahDetail() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {docTypes.map((doc) => {
-            const hasFile = Boolean(jamaah[doc.field]);
+            const filePath = jamaah[doc.field];
+            const hasFile = Boolean(filePath);
+            const isImage = hasFile && /\.(jpg|jpeg|png)$/i.test(filePath);
+            const docUrl = getDocumentUrl(id, doc.key);
             return (
               <div
                 key={doc.key}
@@ -148,17 +152,33 @@ export default function JamaahDetail() {
                 </p>
                 {hasFile ? (
                   <div className="space-y-2">
-                    <a
-                      href={getDocumentUrl(id, doc.key)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
-                    >
-                      Lihat Dokumen
-                    </a>
+                    {isImage ? (
+                      <button
+                        type="button"
+                        onClick={() => setLightbox({ url: docUrl, label: doc.label })}
+                        className="w-full cursor-pointer"
+                      >
+                        <img
+                          src={docUrl}
+                          alt={doc.label}
+                          className="w-full max-h-48 object-contain rounded border border-gray-200"
+                        />
+                      </button>
+                    ) : (
+                      <a
+                        href={docUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center w-full h-40 bg-gray-50 rounded border border-gray-200 text-emerald-600 hover:text-emerald-800 text-sm font-medium"
+                      >
+                        Lihat PDF
+                      </a>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 mb-2">Belum diupload</p>
+                  <div className="flex items-center justify-center w-full h-40 bg-gray-50 rounded border border-dashed border-gray-300">
+                    <p className="text-xs text-gray-400">Belum diupload</p>
+                  </div>
                 )}
                 <label className="mt-2 inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 cursor-pointer">
                   {hasFile ? 'Ganti File' : 'Upload'}
@@ -179,6 +199,32 @@ export default function JamaahDetail() {
           })}
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setLightbox(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setLightbox(null)}
+              className="absolute -top-2 -right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-lg text-lg font-bold"
+            >
+              x
+            </button>
+            <img
+              src={lightbox.url}
+              alt={lightbox.label}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
