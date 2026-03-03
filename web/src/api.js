@@ -186,3 +186,23 @@ export async function deleteAdmin(id) {
   }
   return res.json();
 }
+
+// Audit logs
+export async function fetchAuditLogs({ entity_type = '', page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (entity_type) params.set('entity_type', entity_type);
+  params.set('page', page);
+  params.set('limit', limit);
+  const res = await authFetch(`${BASE}/audit-logs?${params}`);
+  if (!res.ok) throw new Error('Gagal memuat audit log');
+  return res.json();
+}
+
+export async function fetchAuditLogsByEntity(entityType, entityId, { page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  params.set('page', page);
+  params.set('limit', limit);
+  const res = await authFetch(`${BASE}/audit-logs/${entityType}/${entityId}?${params}`);
+  if (!res.ok) throw new Error('Gagal memuat audit log');
+  return res.json();
+}

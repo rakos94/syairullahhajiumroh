@@ -43,11 +43,12 @@ var allowedExtensions = map[string]bool{
 type JamaahHandler struct {
 	repo      *repository.JamaahRepository
 	paketRepo *repository.PaketRepository
+	auditRepo *repository.AuditLogRepository
 	uploadDir string
 }
 
-func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, uploadDir string) *JamaahHandler {
-	return &JamaahHandler{repo: repo, paketRepo: paketRepo, uploadDir: uploadDir}
+func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, auditRepo *repository.AuditLogRepository, uploadDir string) *JamaahHandler {
+	return &JamaahHandler{repo: repo, paketRepo: paketRepo, auditRepo: auditRepo, uploadDir: uploadDir}
 }
 
 // populatePaket populates the transient Paket field for a slice of jamaah.
@@ -137,6 +138,8 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	logAudit(c, h.auditRepo, "jamaah", jamaah.ID, jamaah.Nama, "create", fmt.Sprintf("Menambah jamaah: %s", jamaah.Nama))
 
 	jamaah.Paket = paket
 	c.JSON(http.StatusCreated, jamaah)
@@ -247,6 +250,17 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Fetch old data for diff
+	oldJamaah, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "jamaah tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	var jamaah model.Jamaah
 	if err := c.ShouldBindJSON(&jamaah); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -288,6 +302,9 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 		return
 	}
 
+	changes := diffJamaah(oldJamaah, &jamaah)
+	logAuditWithChanges(c, h.auditRepo, "jamaah", id, jamaah.Nama, "update", fmt.Sprintf("Memperbarui jamaah: %s", jamaah.Nama), changes)
+
 	c.JSON(http.StatusOK, gin.H{"message": "jamaah berhasil diperbarui"})
 }
 
@@ -308,10 +325,22 @@ func (h *JamaahHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	jamaah, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "jamaah tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "delete", fmt.Sprintf("Menghapus jamaah: %s", jamaah.Nama))
 
 	c.JSON(http.StatusOK, gin.H{"message": "jamaah berhasil dihapus"})
 }
@@ -422,6 +451,8 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 			return
 		}
 	}
+
+	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "upload", fmt.Sprintf("Upload dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil diupload", docType), "path": relativePath})
 }
@@ -555,6 +586,8 @@ func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "delete_document", fmt.Sprintf("Menghapus dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
 }

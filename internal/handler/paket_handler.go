@@ -14,12 +14,13 @@ import (
 )
 
 type PaketHandler struct {
-	repo      *repository.PaketRepository
+	repo       *repository.PaketRepository
 	jamaahRepo *repository.JamaahRepository
+	auditRepo  *repository.AuditLogRepository
 }
 
-func NewPaketHandler(repo *repository.PaketRepository, jamaahRepo *repository.JamaahRepository) *PaketHandler {
-	return &PaketHandler{repo: repo, jamaahRepo: jamaahRepo}
+func NewPaketHandler(repo *repository.PaketRepository, jamaahRepo *repository.JamaahRepository, auditRepo *repository.AuditLogRepository) *PaketHandler {
+	return &PaketHandler{repo: repo, jamaahRepo: jamaahRepo, auditRepo: auditRepo}
 }
 
 // CreatePaket godoc
@@ -65,6 +66,8 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	}
 
 	paket.BuildLabel()
+	logAudit(c, h.auditRepo, "paket", paket.ID, paket.Label, "create", fmt.Sprintf("Menambah paket: %s", paket.Label))
+
 	c.JSON(http.StatusCreated, paket)
 }
 
@@ -139,6 +142,17 @@ func (h *PaketHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Fetch old data for diff
+	oldPaket, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "paket tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	var paket model.Paket
 	if err := c.ShouldBindJSON(&paket); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -173,6 +187,10 @@ func (h *PaketHandler) Update(c *gin.Context) {
 		_ = h.jamaahRepo.UpdateDepartureByPaket(c.Request.Context(), id, tk.Nama, tk.Tanggal)
 	}
 
+	paket.BuildLabel()
+	changes := diffPaket(oldPaket, &paket)
+	logAuditWithChanges(c, h.auditRepo, "paket", id, paket.Label, "update", fmt.Sprintf("Memperbarui paket: %s", paket.Label), changes)
+
 	c.JSON(http.StatusOK, gin.H{"message": "paket berhasil diperbarui"})
 }
 
@@ -193,10 +211,22 @@ func (h *PaketHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	paket, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "paket tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	logAudit(c, h.auditRepo, "paket", id, paket.Label, "delete", fmt.Sprintf("Menghapus paket: %s", paket.Label))
 
 	c.JSON(http.StatusOK, gin.H{"message": "paket berhasil dihapus"})
 }

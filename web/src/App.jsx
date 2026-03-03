@@ -6,6 +6,7 @@ import JamaahForm from './pages/JamaahForm';
 import JamaahDetail from './pages/JamaahDetail';
 import PaketList from './pages/PaketList';
 import AdminList from './pages/AdminList';
+import AuditLog from './pages/AuditLog';
 import Login from './pages/Login';
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
                 <Route path="/jamaah/:id" element={<JamaahDetail />} />
                 <Route path="/paket" element={<PaketList />} />
                 <Route path="/admin" element={<AdminList />} />
+                <Route path="/riwayat" element={<AuditLog />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

@@ -124,6 +124,28 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return err
 			},
 		},
+		{
+			Name: "006_create_audit_logs_indexes",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("audit_logs")
+				_, err := coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+					{
+						Keys: bson.D{
+							{Key: "entity_type", Value: 1},
+							{Key: "entity_id", Value: 1},
+							{Key: "created_at", Value: -1},
+						},
+					},
+					{
+						Keys: bson.D{{Key: "created_at", Value: -1}},
+					},
+					{
+						Keys: bson.D{{Key: "admin_id", Value: 1}},
+					},
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {

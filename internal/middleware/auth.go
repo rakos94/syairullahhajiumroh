@@ -41,6 +41,9 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		}
 
 		c.Set("admin_id", claims["sub"])
+		if username, ok := claims["username"].(string); ok {
+			c.Set("admin_username", username)
+		}
 		c.Next()
 	}
 }
