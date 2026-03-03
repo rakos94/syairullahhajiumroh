@@ -113,6 +113,17 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return cursor.Err()
 			},
 		},
+		{
+			Name: "005_create_admins_index",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("admins")
+				_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys:    bson.D{{Key: "username", Value: 1}},
+					Options: options.Index().SetUnique(true),
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {

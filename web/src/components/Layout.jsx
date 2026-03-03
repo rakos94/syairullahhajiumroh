@@ -1,7 +1,10 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -11,7 +14,7 @@ export default function Layout({ children }) {
             <Link to="/" className="text-xl font-bold tracking-wide">
               Syairullah Haji & Umroh
             </Link>
-            <div className="flex space-x-4">
+            <div className="flex items-center space-x-4">
               <Link
                 to="/"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
@@ -32,6 +35,22 @@ export default function Layout({ children }) {
               >
                 Paket
               </Link>
+              <Link
+                to="/admin"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/admin'
+                    ? 'bg-emerald-800'
+                    : 'hover:bg-emerald-600'
+                }`}
+              >
+                Admin
+              </Link>
+              <button
+                onClick={() => { logout(); navigate('/login'); }}
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>

@@ -11,10 +11,13 @@ import (
 	app "syairullahhajiumroh"
 	"syairullahhajiumroh/internal/config"
 	"syairullahhajiumroh/internal/handler"
+	"syairullahhajiumroh/internal/middleware"
 	"syairullahhajiumroh/internal/migration"
 	"syairullahhajiumroh/internal/repository"
 
 	_ "syairullahhajiumroh/docs"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -54,6 +57,17 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	// Ensure super admin from env
+	adminRepo := repository.NewAdminRepository(db)
+	hashedPw, err := bcrypt.GenerateFromPassword([]byte(cfg.AdminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("Failed to hash admin password: %v", err)
+	}
+	if err := adminRepo.EnsureSuperAdmin(ctx, cfg.AdminUsername, string(hashedPw)); err != nil {
+		log.Fatalf("Failed to ensure super admin: %v", err)
+	}
+	log.Printf("Super admin ensured: %s", cfg.AdminUsername)
+
 	// Create uploads directory
 	if err := os.MkdirAll(cfg.UploadDir, 0755); err != nil {
 		log.Fatalf("Failed to create upload directory: %v", err)
@@ -64,12 +78,22 @@ func main() {
 	paketRepo := repository.NewPaketRepository(db)
 	jamaahHandler := handler.NewJamaahHandler(jamaahRepo, paketRepo, cfg.UploadDir)
 	paketHandler := handler.NewPaketHandler(paketRepo, jamaahRepo)
+	authHandler := handler.NewAuthHandler(adminRepo, cfg.JWTSecret)
 
 	// Setup Gin router
 	r := gin.Default()
 	api := r.Group("/api")
-	jamaahHandler.RegisterRoutes(api)
-	paketHandler.RegisterRoutes(api)
+
+	// Public routes
+	authHandler.RegisterPublicRoutes(api)
+	api.GET("/jamaah/:id/dokumen/:docType", jamaahHandler.GetDocument)
+
+	// Protected routes
+	protected := api.Group("")
+	protected.Use(middleware.AuthRequired(cfg.JWTSecret))
+	authHandler.RegisterProtectedRoutes(protected)
+	jamaahHandler.RegisterRoutes(protected)
+	paketHandler.RegisterRoutes(protected)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

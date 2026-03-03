@@ -576,7 +576,6 @@ func (h *JamaahHandler) RegisterRoutes(r *gin.RouterGroup) {
 		jamaah.PUT("/:id", h.Update)
 		jamaah.DELETE("/:id", h.Delete)
 		jamaah.POST("/:id/upload/:docType", h.UploadDocument)
-		jamaah.GET("/:id/dokumen/:docType", h.GetDocument)
 		jamaah.DELETE("/:id/dokumen/:docType", h.DeleteDocument)
 	}
 }

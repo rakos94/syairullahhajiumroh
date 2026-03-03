@@ -1,11 +1,26 @@
 const BASE = '/api';
 
+async function authFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { ...options.headers };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    throw new Error('Sesi berakhir, silakan login kembali');
+  }
+  return res;
+}
+
 export async function fetchJamaah({ paket_id = '', page = 1, limit = 10 } = {}) {
   const params = new URLSearchParams();
   if (paket_id) params.set('paket_id', paket_id);
   params.set('page', page);
   params.set('limit', limit);
-  const res = await fetch(`${BASE}/jamaah?${params}`);
+  const res = await authFetch(`${BASE}/jamaah?${params}`);
   if (!res.ok) throw new Error('Gagal memuat data jamaah');
   return res.json();
 }
@@ -13,13 +28,13 @@ export async function fetchJamaah({ paket_id = '', page = 1, limit = 10 } = {}) 
 export async function fetchPaketList(tipe = '') {
   const params = new URLSearchParams();
   if (tipe) params.set('tipe', tipe);
-  const res = await fetch(`${BASE}/paket?${params}`);
+  const res = await authFetch(`${BASE}/paket?${params}`);
   if (!res.ok) throw new Error('Gagal memuat data paket');
   return res.json();
 }
 
 export async function createPaket(data) {
-  const res = await fetch(`${BASE}/paket`, {
+  const res = await authFetch(`${BASE}/paket`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -32,7 +47,7 @@ export async function createPaket(data) {
 }
 
 export async function updatePaket(id, data) {
-  const res = await fetch(`${BASE}/paket/${id}`, {
+  const res = await authFetch(`${BASE}/paket/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -45,19 +60,19 @@ export async function updatePaket(id, data) {
 }
 
 export async function deletePaket(id) {
-  const res = await fetch(`${BASE}/paket/${id}`, { method: 'DELETE' });
+  const res = await authFetch(`${BASE}/paket/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Gagal menghapus paket');
   return res.json();
 }
 
 export async function fetchJamaahById(id) {
-  const res = await fetch(`${BASE}/jamaah/${id}`);
+  const res = await authFetch(`${BASE}/jamaah/${id}`);
   if (!res.ok) throw new Error('Jamaah tidak ditemukan');
   return res.json();
 }
 
 export async function createJamaah(data) {
-  const res = await fetch(`${BASE}/jamaah`, {
+  const res = await authFetch(`${BASE}/jamaah`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -70,7 +85,7 @@ export async function createJamaah(data) {
 }
 
 export async function updateJamaah(id, data) {
-  const res = await fetch(`${BASE}/jamaah/${id}`, {
+  const res = await authFetch(`${BASE}/jamaah/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -83,7 +98,7 @@ export async function updateJamaah(id, data) {
 }
 
 export async function deleteJamaah(id) {
-  const res = await fetch(`${BASE}/jamaah/${id}`, { method: 'DELETE' });
+  const res = await authFetch(`${BASE}/jamaah/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Gagal menghapus jamaah');
   return res.json();
 }
@@ -92,7 +107,7 @@ export async function uploadDocument(id, docType, file, nominal) {
   const formData = new FormData();
   formData.append('file', file);
   if (nominal !== undefined) formData.append('nominal', nominal);
-  const res = await fetch(`${BASE}/jamaah/${id}/upload/${docType}`, {
+  const res = await authFetch(`${BASE}/jamaah/${id}/upload/${docType}`, {
     method: 'POST',
     body: formData,
   });
@@ -120,12 +135,54 @@ export function getMultiDocumentDownloadUrl(id, docType, index) {
 }
 
 export async function deleteDocument(id, docType, index) {
-  const res = await fetch(`${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`, {
+  const res = await authFetch(`${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`, {
     method: 'DELETE',
   });
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || 'Gagal menghapus dokumen');
+  }
+  return res.json();
+}
+
+// Admin management
+export async function fetchAdminList() {
+  const res = await authFetch(`${BASE}/admin`);
+  if (!res.ok) throw new Error('Gagal memuat data admin');
+  return res.json();
+}
+
+export async function createAdmin(data) {
+  const res = await authFetch(`${BASE}/admin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal membuat admin');
+  }
+  return res.json();
+}
+
+export async function updateAdmin(id, data) {
+  const res = await authFetch(`${BASE}/admin/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal memperbarui admin');
+  }
+  return res.json();
+}
+
+export async function deleteAdmin(id) {
+  const res = await authFetch(`${BASE}/admin/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Gagal menghapus admin');
   }
   return res.json();
 }
