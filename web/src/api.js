@@ -107,8 +107,16 @@ export function getDocumentUrl(id, docType) {
   return `${BASE}/jamaah/${id}/dokumen/${docType}`;
 }
 
+export function getDocumentDownloadUrl(id, docType) {
+  return `${BASE}/jamaah/${id}/dokumen/${docType}?download=true`;
+}
+
 export function getMultiDocumentUrl(id, docType, index) {
   return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`;
+}
+
+export function getMultiDocumentDownloadUrl(id, docType, index) {
+  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}&download=true`;
 }
 
 export async function deleteDocument(id, docType, index) {

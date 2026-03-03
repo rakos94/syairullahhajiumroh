@@ -462,6 +462,7 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
+	var filePath string
 	if multiDocTypes[docType] {
 		var entries []model.BuktiPembayaran
 		switch bsonField {
@@ -476,30 +477,32 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("dokumen %s tidak ditemukan", docType)})
 			return
 		}
-		c.File(filepath.Join(h.uploadDir, entries[idx].File))
-		return
+		filePath = filepath.Join(h.uploadDir, entries[idx].File)
+	} else {
+		var relativePath string
+		switch bsonField {
+		case "foto_ktp":
+			relativePath = jamaah.FotoKTP
+		case "foto_kk":
+			relativePath = jamaah.FotoKK
+		case "foto_paspor":
+			relativePath = jamaah.FotoPaspor
+		case "pasfoto":
+			relativePath = jamaah.Pasfoto
+		case "foto_koper_diterima":
+			relativePath = jamaah.FotoKoperDiterima
+		}
+
+		if relativePath == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("dokumen %s belum diupload", docType)})
+			return
+		}
+		filePath = filepath.Join(h.uploadDir, relativePath)
 	}
 
-	var relativePath string
-	switch bsonField {
-	case "foto_ktp":
-		relativePath = jamaah.FotoKTP
-	case "foto_kk":
-		relativePath = jamaah.FotoKK
-	case "foto_paspor":
-		relativePath = jamaah.FotoPaspor
-	case "pasfoto":
-		relativePath = jamaah.Pasfoto
-	case "foto_koper_diterima":
-		relativePath = jamaah.FotoKoperDiterima
+	if c.Query("download") == "true" {
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(filePath)))
 	}
-
-	if relativePath == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("dokumen %s belum diupload", docType)})
-		return
-	}
-
-	filePath := filepath.Join(h.uploadDir, relativePath)
 	c.File(filePath)
 }
 

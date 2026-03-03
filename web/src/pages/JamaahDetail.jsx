@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchJamaahById, uploadDocument, getDocumentUrl, getMultiDocumentUrl, deleteDocument } from '../api';
+import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
 import StatusBadge from '../components/StatusBadge';
 
 const singleDocTypes = [
@@ -32,6 +32,7 @@ export default function JamaahDetail() {
   const [error, setError] = useState('');
   const [uploadMsg, setUploadMsg] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [cacheKey, setCacheKey] = useState(Date.now());
 
   const loadData = async () => {
     try {
@@ -54,6 +55,7 @@ export default function JamaahDetail() {
       setUploadMsg('');
       const result = await uploadDocument(id, docType, file, nominal);
       setUploadMsg(result.message);
+      setCacheKey(Date.now());
       loadData();
     } catch (err) {
       setUploadMsg(err.message);
@@ -66,6 +68,7 @@ export default function JamaahDetail() {
       setUploadMsg('');
       const result = await deleteDocument(id, docType, index);
       setUploadMsg(result.message);
+      setCacheKey(Date.now());
       loadData();
     } catch (err) {
       setUploadMsg(err.message);
@@ -163,7 +166,7 @@ export default function JamaahDetail() {
             const filePath = jamaah[doc.field];
             const hasFile = Boolean(filePath);
             const isImage = hasFile && /\.(jpg|jpeg|png)$/i.test(filePath);
-            const docUrl = getDocumentUrl(id, doc.key);
+            const docUrl = getDocumentUrl(id, doc.key) + `?_t=${cacheKey}`;
             return (
               <div
                 key={doc.key}
@@ -202,20 +205,30 @@ export default function JamaahDetail() {
                     <p className="text-xs text-gray-400">Belum diupload</p>
                   </div>
                 )}
-                <label className="mt-2 inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 cursor-pointer">
-                  {hasFile ? 'Ganti File' : 'Upload'}
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files[0]) {
-                        handleUpload(doc.key, e.target.files[0]);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                </label>
+                <div className="mt-2 flex gap-2">
+                  <label className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 cursor-pointer">
+                    {hasFile ? 'Ganti File' : 'Upload'}
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files[0]) {
+                          handleUpload(doc.key, e.target.files[0]);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                  {hasFile && (
+                    <a
+                      href={getDocumentDownloadUrl(id, doc.key)}
+                      className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-md hover:bg-emerald-100"
+                    >
+                      Download
+                    </a>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -253,7 +266,7 @@ export default function JamaahDetail() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {entries.map((entry, idx) => {
                     const isImage = /\.(jpg|jpeg|png)$/i.test(entry.file);
-                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx);
+                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx) + `&_t=${cacheKey}`;
                     return (
                       <div key={idx} className="relative border border-gray-200 rounded-lg p-2 group">
                         {isImage ? (
@@ -281,6 +294,12 @@ export default function JamaahDetail() {
                         <p className="mt-1 text-xs font-medium text-gray-700 text-center">
                           Rp {entry.nominal?.toLocaleString('id-ID') || '0'}
                         </p>
+                        <a
+                          href={getMultiDocumentDownloadUrl(id, doc.key, idx)}
+                          className="mt-1 flex items-center justify-center px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded hover:bg-emerald-100"
+                        >
+                          Download
+                        </a>
                         <button
                           type="button"
                           onClick={() => handleDeleteDoc(doc.key, idx)}
