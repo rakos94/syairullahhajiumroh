@@ -249,10 +249,11 @@ func (h *AuthHandler) DeleteAdmin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "admin berhasil dihapus"})
 }
 
-func (h *AuthHandler) RegisterPublicRoutes(r *gin.RouterGroup) {
+func (h *AuthHandler) RegisterPublicRoutes(r *gin.RouterGroup, loginMiddlewares ...gin.HandlerFunc) {
 	auth := r.Group("/auth")
 	{
-		auth.POST("/login", h.Login)
+		handlers := append(loginMiddlewares, h.Login)
+		auth.POST("/login", handlers...)
 	}
 }
 

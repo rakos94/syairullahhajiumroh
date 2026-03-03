@@ -86,8 +86,9 @@ func main() {
 	r := gin.Default()
 	api := r.Group("/api")
 
-	// Public routes
-	authHandler.RegisterPublicRoutes(api)
+	// Public routes (login rate limited: 30 attempts per 5 minutes per IP)
+	loginLimiter := middleware.NewRateLimiter(30, 5*time.Minute)
+	authHandler.RegisterPublicRoutes(api, loginLimiter.Middleware())
 	api.GET("/jamaah/:id/dokumen/:docType", jamaahHandler.GetDocument)
 
 	// Protected routes
