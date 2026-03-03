@@ -21,9 +21,41 @@ const emptyForm = {
   keterangan: '',
 };
 
-function formatDateForInput(dateStr) {
-  if (!dateStr) return '';
-  return dateStr.slice(0, 10);
+// Convert ISO date string to dd/mm/yyyy
+function isoToDmy(dateStr) {
+  if (!dateStr || dateStr === '0001-01-01T00:00:00Z') return '';
+  const d = dateStr.slice(0, 10); // yyyy-mm-dd
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+// Convert dd/mm/yyyy to ISO string, returns null if invalid
+function dmyToIso(dmy) {
+  if (!dmy) return null;
+  const match = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+// Auto-format date input: add slashes as user types
+function handleDateInput(value, prev) {
+  // Only allow digits and slashes
+  let cleaned = value.replace(/[^\d/]/g, '');
+
+  // Auto-insert slashes
+  const digits = cleaned.replace(/\//g, '');
+  if (digits.length <= 2) {
+    cleaned = digits;
+  } else if (digits.length <= 4) {
+    cleaned = digits.slice(0, 2) + '/' + digits.slice(2);
+  } else {
+    cleaned = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8);
+  }
+
+  return cleaned;
 }
 
 export default function JamaahForm() {
@@ -46,10 +78,10 @@ export default function JamaahForm() {
             nomor_paspor: data.nomor_paspor || '',
             alamat: data.alamat || '',
             no_hp: data.no_hp || '',
-            tanggal_lahir: formatDateForInput(data.tanggal_lahir),
+            tanggal_lahir: isoToDmy(data.tanggal_lahir),
             jenis_kelamin: data.jenis_kelamin || 'laki-laki',
             paket: data.paket || 'haji',
-            tanggal_keberangkatan: formatDateForInput(data.tanggal_keberangkatan),
+            tanggal_keberangkatan: isoToDmy(data.tanggal_keberangkatan),
             status_pembayaran: data.status_pembayaran || 'belum_bayar',
             no_rekening_haji: data.no_rekening_haji || '',
             tipe_bank: data.tipe_bank || '',
@@ -64,8 +96,17 @@ export default function JamaahForm() {
     }
   }, [id, isEdit]);
 
+  const dateFields = ['tanggal_lahir', 'tanggal_keberangkatan'];
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (dateFields.includes(name)) {
+      setForm((prev) => ({
+        ...prev,
+        [name]: handleDateInput(value, prev[name]),
+      }));
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -79,12 +120,8 @@ export default function JamaahForm() {
 
     const payload = {
       ...form,
-      tanggal_lahir: form.tanggal_lahir
-        ? new Date(form.tanggal_lahir).toISOString()
-        : undefined,
-      tanggal_keberangkatan: form.tanggal_keberangkatan
-        ? new Date(form.tanggal_keberangkatan).toISOString()
-        : undefined,
+      tanggal_lahir: dmyToIso(form.tanggal_lahir) || undefined,
+      tanggal_keberangkatan: dmyToIso(form.tanggal_keberangkatan) || undefined,
     };
 
     try {
@@ -183,10 +220,11 @@ export default function JamaahForm() {
           <div>
             <label className={labelClass}>Tanggal Lahir</label>
             <input
-              type="date"
               name="tanggal_lahir"
               value={form.tanggal_lahir}
               onChange={handleChange}
+              placeholder="dd/mm/yyyy"
+              maxLength={10}
               className={inputClass}
             />
           </div>
@@ -224,10 +262,11 @@ export default function JamaahForm() {
           <div>
             <label className={labelClass}>Tanggal Keberangkatan</label>
             <input
-              type="date"
               name="tanggal_keberangkatan"
               value={form.tanggal_keberangkatan}
               onChange={handleChange}
+              placeholder="dd/mm/yyyy"
+              maxLength={10}
               className={inputClass}
             />
           </div>

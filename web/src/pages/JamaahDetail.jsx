@@ -13,11 +13,11 @@ const docTypes = [
 
 function formatDate(dateStr) {
   if (!dateStr || dateStr === '0001-01-01T00:00:00Z') return '-';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 export default function JamaahDetail() {
