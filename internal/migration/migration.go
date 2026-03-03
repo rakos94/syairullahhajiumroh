@@ -49,6 +49,16 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return err
 			},
 		},
+		{
+			Name: "002_add_deleted_at_index",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("jamaah")
+				_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys: bson.D{{Key: "deleted_at", Value: 1}},
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {

@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
+	app "syairullahhajiumroh"
 	"syairullahhajiumroh/internal/config"
 	"syairullahhajiumroh/internal/handler"
 	"syairullahhajiumroh/internal/migration"
@@ -67,7 +70,31 @@ func main() {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Serve embedded React app
+	distFS, err := fs.Sub(app.WebDist, "web/dist")
+	if err != nil {
+		log.Fatalf("Failed to create sub filesystem: %v", err)
+	}
+	staticHandler := http.FileServer(http.FS(distFS))
+
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// Try to serve static file
+		f, err := distFS.Open(path[1:]) // strip leading /
+		if err == nil {
+			f.Close()
+			staticHandler.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		// SPA fallback: serve index.html for all other routes
+		c.Request.URL.Path = "/"
+		staticHandler.ServeHTTP(c.Writer, c.Request)
+	})
+
 	log.Printf("Server starting on port %s", cfg.AppPort)
+	log.Println("UI: http://localhost:" + cfg.AppPort)
 	log.Println("Swagger UI: http://localhost:" + cfg.AppPort + "/swagger/index.html")
 	if err := r.Run(":" + cfg.AppPort); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
+	"unicode"
 
 	"syairullahhajiumroh/internal/model"
 
@@ -21,7 +23,21 @@ func NewJamaahRepository(db *mongo.Database) *JamaahRepository {
 	}
 }
 
+// titleCase capitalizes the first letter of each word.
+func titleCase(s string) string {
+	words := strings.Fields(s)
+	for i, w := range words {
+		runes := []rune(strings.ToLower(w))
+		if len(runes) > 0 {
+			runes[0] = unicode.ToUpper(runes[0])
+		}
+		words[i] = string(runes)
+	}
+	return strings.Join(words, " ")
+}
+
 func (r *JamaahRepository) Create(ctx context.Context, jamaah *model.Jamaah) error {
+	jamaah.Nama = titleCase(jamaah.Nama)
 	jamaah.CreatedAt = time.Now()
 	jamaah.UpdatedAt = time.Now()
 
@@ -35,7 +51,7 @@ func (r *JamaahRepository) Create(ctx context.Context, jamaah *model.Jamaah) err
 }
 
 func (r *JamaahRepository) FindAll(ctx context.Context, paket string) ([]model.Jamaah, error) {
-	filter := bson.M{}
+	filter := bson.M{"deleted_at": nil}
 	if paket != "" {
 		filter["paket"] = paket
 	}
@@ -59,7 +75,7 @@ func (r *JamaahRepository) FindAll(ctx context.Context, paket string) ([]model.J
 
 func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*model.Jamaah, error) {
 	var jamaah model.Jamaah
-	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&jamaah)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id, "deleted_at": nil}).Decode(&jamaah)
 	if err != nil {
 		return nil, err
 	}
@@ -67,25 +83,31 @@ func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) 
 }
 
 func (r *JamaahRepository) Update(ctx context.Context, id primitive.ObjectID, jamaah *model.Jamaah) error {
+	jamaah.Nama = titleCase(jamaah.Nama)
 	jamaah.UpdatedAt = time.Now()
 
 	_, err := r.collection.UpdateOne(
 		ctx,
-		bson.M{"_id": id},
+		bson.M{"_id": id, "deleted_at": nil},
 		bson.M{"$set": jamaah},
 	)
 	return err
 }
 
 func (r *JamaahRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
-	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
+	now := time.Now()
+	_, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": id, "deleted_at": nil},
+		bson.M{"$set": bson.M{"deleted_at": now}},
+	)
 	return err
 }
 
 func (r *JamaahRepository) UpdateField(ctx context.Context, id primitive.ObjectID, field string, value interface{}) error {
 	_, err := r.collection.UpdateOne(
 		ctx,
-		bson.M{"_id": id},
+		bson.M{"_id": id, "deleted_at": nil},
 		bson.M{"$set": bson.M{field: value, "updated_at": time.Now()}},
 	)
 	return err

@@ -31,4 +31,5 @@ type Jamaah struct {
 	Keterangan                string             `json:"keterangan" bson:"keterangan"`
 	CreatedAt                 time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                 time.Time          `json:"updated_at" bson:"updated_at"`
+	DeletedAt                 *time.Time         `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`
 }
