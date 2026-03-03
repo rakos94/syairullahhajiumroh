@@ -1,3 +1,5 @@
+import imageCompression from 'browser-image-compression';
+
 const BASE = '/api';
 
 async function authFetch(url, options = {}) {
@@ -105,6 +107,13 @@ export async function deleteJamaah(id) {
 }
 
 export async function uploadDocument(id, docType, file, nominal) {
+  if (file.type.startsWith('image/')) {
+    file = await imageCompression(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    });
+  }
   const formData = new FormData();
   formData.append('file', file);
   if (nominal !== undefined) formData.append('nominal', nominal);
