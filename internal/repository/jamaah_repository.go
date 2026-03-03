@@ -51,10 +51,17 @@ func (r *JamaahRepository) Create(ctx context.Context, jamaah *model.Jamaah) err
 	return nil
 }
 
-func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.ObjectID, page, limit int) ([]model.Jamaah, int64, error) {
+func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.ObjectID, search string, page, limit int) ([]model.Jamaah, int64, error) {
 	filter := bson.M{"deleted_at": nil}
 	if paketID != nil {
 		filter["paket_id"] = *paketID
+	}
+	if search != "" {
+		regex := bson.M{"$regex": search, "$options": "i"}
+		filter["$or"] = bson.A{
+			bson.M{"nama": regex},
+			bson.M{"nik": bson.M{"$regex": search}},
+		}
 	}
 
 	total, err := r.collection.CountDocuments(ctx, filter)

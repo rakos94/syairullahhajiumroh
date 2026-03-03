@@ -12,6 +12,7 @@ export default function JamaahList() {
   const [filterPaket, setFilterPaket] = useState('');
   const [paketOptions, setPaketOptions] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -21,10 +22,16 @@ export default function JamaahList() {
     fetchPaketList().then(setPaketOptions).catch(() => {});
   }, []);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetchJamaah({ paket_id: filterPaket, page, limit: PAGE_SIZE });
+      const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, page, limit: PAGE_SIZE });
       setJamaahList(res.data || []);
       setTotalPages(res.total_pages || 1);
       setTotal(res.total || 0);
@@ -38,12 +45,12 @@ export default function JamaahList() {
 
   useEffect(() => {
     loadData();
-  }, [filterPaket, page]);
+  }, [filterPaket, debouncedSearch, page]);
 
-  // Reset to page 1 when filter changes
+  // Reset to page 1 when filter or search changes
   useEffect(() => {
     setPage(1);
-  }, [filterPaket]);
+  }, [filterPaket, debouncedSearch]);
 
   const handleDelete = async (id, nama) => {
     if (!confirm(`Hapus jamaah "${nama}"?`)) return;
@@ -54,15 +61,6 @@ export default function JamaahList() {
       setError(err.message);
     }
   };
-
-  // Client-side search within current page results
-  const filtered = search
-    ? jamaahList.filter(
-        (j) =>
-          j.nama?.toLowerCase().includes(search.toLowerCase()) ||
-          j.nik?.includes(search)
-      )
-    : jamaahList;
 
   return (
     <div>
@@ -106,7 +104,7 @@ export default function JamaahList() {
 
       {loading ? (
         <p className="text-gray-500">Memuat data...</p>
-      ) : filtered.length === 0 ? (
+      ) : jamaahList.length === 0 ? (
         <p className="text-gray-500">Tidak ada data jamaah.</p>
       ) : (
         <>
@@ -135,7 +133,7 @@ export default function JamaahList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filtered.map((j, idx) => (
+                {jamaahList.map((j, idx) => (
                   <tr
                     key={j.id}
                     className="hover:bg-gray-50 cursor-pointer"

@@ -15,9 +15,10 @@ async function authFetch(url, options = {}) {
   return res;
 }
 
-export async function fetchJamaah({ paket_id = '', page = 1, limit = 10 } = {}) {
+export async function fetchJamaah({ paket_id = '', search = '', page = 1, limit = 10 } = {}) {
   const params = new URLSearchParams();
   if (paket_id) params.set('paket_id', paket_id);
+  if (search) params.set('search', search);
   params.set('page', page);
   params.set('limit', limit);
   const res = await authFetch(`${BASE}/jamaah?${params}`);
