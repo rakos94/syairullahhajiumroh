@@ -1,0 +1,541 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API untuk manajemen data jamaah haji dan umroh",
+        "title": "Syairullah Haji \u0026 Umroh API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/jamaah": {
+            "get": {
+                "description": "Menampilkan daftar jamaah, bisa difilter berdasarkan paket",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "List semua jamaah",
+                "parameters": [
+                    {
+                        "enum": [
+                            "haji",
+                            "umroh"
+                        ],
+                        "type": "string",
+                        "description": "Filter berdasarkan paket",
+                        "name": "paket",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Jamaah"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Membuat data jamaah haji/umroh baru",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "Tambah jamaah baru",
+                "parameters": [
+                    {
+                        "description": "Data jamaah",
+                        "name": "jamaah",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Jamaah"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Jamaah"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jamaah/{id}": {
+            "get": {
+                "description": "Menampilkan detail jamaah berdasarkan ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "Detail jamaah",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Jamaah"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Memperbarui data jamaah berdasarkan ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "Update jamaah",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data jamaah",
+                        "name": "jamaah",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Jamaah"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Menghapus data jamaah berdasarkan ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jamaah"
+                ],
+                "summary": "Hapus jamaah",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jamaah/{id}/dokumen/{docType}": {
+            "get": {
+                "description": "Download file dokumen jamaah berdasarkan tipe",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "dokumen"
+                ],
+                "summary": "Download dokumen jamaah",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "ktp",
+                            "kk",
+                            "paspor",
+                            "pasfoto",
+                            "koper_diterima"
+                        ],
+                        "type": "string",
+                        "description": "Tipe dokumen",
+                        "name": "docType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jamaah/{id}/upload/{docType}": {
+            "post": {
+                "description": "Upload file dokumen (KTP, KK, Paspor, Pasfoto, Koper Diterima) untuk jamaah",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dokumen"
+                ],
+                "summary": "Upload dokumen jamaah",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jamaah ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "ktp",
+                            "kk",
+                            "paspor",
+                            "pasfoto",
+                            "koper_diterima"
+                        ],
+                        "type": "string",
+                        "description": "Tipe dokumen",
+                        "name": "docType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File dokumen (jpg, jpeg, png, pdf)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.Jamaah": {
+            "type": "object",
+            "required": [
+                "jenis_kelamin",
+                "nama",
+                "nik",
+                "paket",
+                "status_pembayaran"
+            ],
+            "properties": {
+                "alamat": {
+                    "type": "string"
+                },
+                "batik_kbih_sudah_diterima": {
+                    "type": "boolean"
+                },
+                "batik_nasional_sudah_dijahit": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "foto_kk": {
+                    "type": "string"
+                },
+                "foto_koper_diterima": {
+                    "type": "string"
+                },
+                "foto_ktp": {
+                    "type": "string"
+                },
+                "foto_paspor": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "jenis_kelamin": {
+                    "type": "string",
+                    "enum": [
+                        "laki-laki",
+                        "perempuan"
+                    ]
+                },
+                "keterangan": {
+                    "type": "string"
+                },
+                "koper_sudah_diterima": {
+                    "type": "boolean"
+                },
+                "nama": {
+                    "type": "string"
+                },
+                "nik": {
+                    "type": "string"
+                },
+                "no_hp": {
+                    "type": "string"
+                },
+                "no_rekening_haji": {
+                    "type": "string"
+                },
+                "nomor_paspor": {
+                    "type": "string"
+                },
+                "paket": {
+                    "type": "string",
+                    "enum": [
+                        "haji",
+                        "umroh"
+                    ]
+                },
+                "pasfoto": {
+                    "type": "string"
+                },
+                "status_pembayaran": {
+                    "type": "string",
+                    "enum": [
+                        "belum_bayar",
+                        "dp",
+                        "lunas"
+                    ]
+                },
+                "tanggal_keberangkatan": {
+                    "type": "string"
+                },
+                "tanggal_lahir": {
+                    "type": "string"
+                },
+                "tipe_bank": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
