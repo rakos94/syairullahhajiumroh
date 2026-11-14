@@ -24,6 +24,12 @@ func NewPortalHandler(repo *repository.JamaahRepository, paketRepo *repository.P
 	return &PortalHandler{repo: repo, paketRepo: paketRepo, qrSecret: qrSecret}
 }
 
+// StatusItem is a yes/no checklist entry shown to the jamaah.
+type StatusItem struct {
+	Nama    string `json:"nama"`
+	Selesai bool   `json:"selesai"`
+}
+
 // KontakKetua is the public contact of a group leader.
 type KontakKetua struct {
 	Nama string `json:"nama"`
@@ -55,6 +61,11 @@ type CekKamarResponse struct {
 	Regu                 string                     `json:"regu"`
 	KetuaRegu            []KontakKetua              `json:"ketua_regu"`
 	KetuaRombongan       []KontakKetua              `json:"ketua_rombongan"`
+	// Kelengkapan and Dokumen only say whether each item is done/uploaded;
+	// the documents themselves are never exposed here. Payment status is
+	// deliberately left out (NIK + birth date is a weak credential).
+	Kelengkapan []StatusItem `json:"kelengkapan"`
+	Dokumen     []StatusItem `json:"dokumen"`
 	// QRToken is shown as a QR code for manasik attendance (haji only).
 	QRToken string `json:"qr_token,omitempty"`
 }
@@ -110,6 +121,17 @@ func (h *PortalHandler) CekKamar(c *gin.Context) {
 		Regu:                 jamaah.Regu,
 		KetuaRegu:            []KontakKetua{},
 		KetuaRombongan:       []KontakKetua{},
+		Kelengkapan: []StatusItem{
+			{Nama: "Batik Nasional sudah dijahit", Selesai: jamaah.BatikNasionalSudahDijahit},
+			{Nama: "Batik KBIH sudah diterima", Selesai: jamaah.BatikKBIHSudahDiterima},
+			{Nama: "Koper sudah diterima", Selesai: jamaah.KoperSudahDiterima},
+		},
+		Dokumen: []StatusItem{
+			{Nama: "KTP", Selesai: jamaah.FotoKTP != ""},
+			{Nama: "Kartu Keluarga", Selesai: jamaah.FotoKK != ""},
+			{Nama: "Paspor", Selesai: jamaah.FotoPaspor != ""},
+			{Nama: "Pas foto", Selesai: jamaah.Pasfoto != ""},
+		},
 	}
 	if !jamaah.PaketID.IsZero() {
 		if paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err == nil {

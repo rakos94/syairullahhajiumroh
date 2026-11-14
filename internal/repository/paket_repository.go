@@ -81,6 +81,7 @@ func (r *PaketRepository) Update(ctx context.Context, id primitive.ObjectID, pak
 			"tahun":                   paket.Tahun,
 			"bulan":                   paket.Bulan,
 			"tanggal_keberangkatan":   paket.TanggalKeberangkatan,
+			"harga":                   paket.Harga,
 			"updated_at":              paket.UpdatedAt,
 		}},
 	)

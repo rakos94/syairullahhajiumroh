@@ -5,6 +5,7 @@ const navLinks = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/jamaah', label: 'Jamaah' },
   { to: '/manasik', label: 'Manasik' },
+  { to: '/tagihan', label: 'Tagihan' },
   { to: '/paket', label: 'Paket' },
   { to: '/pengumuman', label: 'Pengumuman' },
   { to: '/riwayat', label: 'Riwayat' },

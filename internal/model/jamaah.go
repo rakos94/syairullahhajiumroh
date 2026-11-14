@@ -49,6 +49,9 @@ type Jamaah struct {
 	BuktiDP                   []BuktiPembayaran  `json:"bukti_dp,omitempty" bson:"bukti_dp,omitempty"`
 	BuktiPelunasan            []BuktiPembayaran  `json:"bukti_pelunasan,omitempty" bson:"bukti_pelunasan,omitempty"`
 	Keterangan                string             `json:"keterangan" bson:"keterangan"`
+	// Computed from paket price and payment receipts; never stored.
+	Tagihan *Tagihan `json:"tagihan,omitempty" bson:"-"`
+
 	CreatedAt                 time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                 time.Time          `json:"updated_at" bson:"updated_at"`
 	DeletedAt                 *time.Time         `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"syairullahhajiumroh/internal/config"
@@ -45,14 +48,14 @@ func main() {
 	// Seed paket data
 	pakets := []model.Paket{
 		{
-			Tipe: "haji", Tahun: 2026,
+			Tipe: "haji", Tahun: 2026, Harga: 45000000,
 			TanggalKeberangkatan: []model.TanggalKeberangkatanPaket{
 				{Nama: "JKG", Tanggal: timePtr(time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))},
 				{Nama: "JKS"},
 			},
 		},
-		{Tipe: "umroh", Tahun: 2026, Bulan: 4},
-		{Tipe: "umroh", Tahun: 2026, Bulan: 5},
+		{Tipe: "umroh", Tahun: 2026, Bulan: 4, Harga: 32500000},
+		{Tipe: "umroh", Tahun: 2026, Bulan: 5}, // price left unset on purpose (shows "belum diatur")
 	}
 
 	paketIDs := make(map[string]primitive.ObjectID) // key: "haji" or "umroh-4" etc
@@ -222,6 +225,46 @@ func main() {
 			log.Printf("[%d] Inserted: %s (ID: %s)", i+1, d.Nama, d.ID.Hex())
 			inserted = append(inserted, d)
 		}
+	}
+
+	// Seed payment receipts and documents (with placeholder image files) so
+	// tagihan and the Cek Kamar document checklist have data.
+	placeholderPNG, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+	writeFile := func(j model.Jamaah, name string) string {
+		dir := filepath.Join(cfg.UploadDir, j.ID.Hex())
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Fatalf("Gagal membuat folder upload: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), placeholderPNG, 0644); err != nil {
+			log.Fatalf("Gagal menulis file contoh: %v", err)
+		}
+		return filepath.Join(j.ID.Hex(), name)
+	}
+	type seedPayment struct {
+		dp, pelunasan float64
+		docs          []string // doc field names
+	}
+	payments := map[string]seedPayment{
+		"3201010101010001": {dp: 15000000, pelunasan: 30000000, docs: []string{"foto_ktp", "foto_kk", "foto_paspor", "pasfoto"}}, // ahmad: lunas
+		"3201010101010002": {dp: 15000000, docs: []string{"foto_ktp", "pasfoto"}},                                                // siti: sisa 30 jt
+		"3201010101010005": {dp: 15000000},                                                                                         // hasan: status lunas tapi sisa -> peringatan
+		"3201010101010003": {dp: 10000000, pelunasan: 22500000},                                                                     // rizki umroh april: lunas
+	}
+	for _, j := range inserted {
+		p, ok := payments[j.NIK]
+		if !ok {
+			continue
+		}
+		if p.dp > 0 {
+			jamaahRepo.PushToArray(ctx, j.ID, "bukti_dp", model.BuktiPembayaran{File: writeFile(j, "bukti_dp_seed.png"), Nominal: p.dp})
+		}
+		if p.pelunasan > 0 {
+			jamaahRepo.PushToArray(ctx, j.ID, "bukti_pelunasan", model.BuktiPembayaran{File: writeFile(j, "bukti_pelunasan_seed.png"), Nominal: p.pelunasan})
+		}
+		for _, field := range p.docs {
+			jamaahRepo.UpdateField(ctx, j.ID, field, writeFile(j, field+".png"))
+		}
+		log.Printf("[Pembayaran] %s: DP %.0f, pelunasan %.0f, %d dokumen", j.Nama, p.dp, p.pelunasan, len(p.docs))
 	}
 
 	// Seed sesi manasik: day 1 with some attendance, day 2 empty.

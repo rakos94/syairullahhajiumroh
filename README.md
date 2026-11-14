@@ -18,7 +18,7 @@ cd syairullahhajiumroh
 # Copy environment file
 cp .env.example .env
 
-# Start MongoDB
+# Start MongoDB (only) for local development
 make docker-up
 ```
 
@@ -42,12 +42,53 @@ make build
 ./bin/server
 ```
 
+## Docker
+
+Aplikasi (beserta MongoDB) bisa dijalankan sepenuhnya di Docker. Image di-build multi-stage
+(frontend → binary Go → Alpine, ±50MB) dan berjalan sebagai user non-root.
+
+```bash
+cp .env.example .env      # lalu ubah JWT_SECRET, ADMIN_PASSWORD, MONGO_PASSWORD
+
+make docker-app           # = docker compose up -d --build  → http://localhost:8080
+make docker-logs          # lihat log aplikasi
+make docker-down          # hentikan semua container
+```
+
+- Upload dokumen disimpan di volume `uploads`, database di volume `mongo_data`.
+- MongoDB hanya bisa diakses dari mesin itu sendiri (`127.0.0.1:27017`), tidak dari internet.
+- Health check: `GET /api/health`.
+
+### Production dengan HTTPS
+
+Scan QR absensi memakai kamera HP, dan browser **hanya mengizinkan kamera lewat HTTPS**.
+Untuk server publik, jalankan dengan Caddy (sertifikat Let's Encrypt otomatis):
+
+1. Arahkan DNS domain (misalnya `haji.syairullah.com`) ke IP server.
+2. Buka port 80 dan 443 di firewall.
+3. Isi `DOMAIN=haji.syairullah.com` di `.env`.
+4. Jalankan:
+
+```bash
+make docker-https         # = docker compose --profile https up -d --build
+```
+
+Setelah itu aplikasi tersedia di `https://<DOMAIN>`. Port 8080 boleh ditutup di firewall.
+
+> **Penting sebelum online:** ganti `JWT_SECRET`, `ADMIN_PASSWORD`, dan `MONGO_PASSWORD`
+> dari nilai default. Mengganti `JWT_SECRET` membuat QR absensi lama tidak berlaku
+> (jamaah cukup membuka ulang Cek Kamar).
+
 ## Seed Data
 
 ```bash
-# Insert dummy data (3 paket + 14 jamaah)
+# Insert dummy data (3 paket + 14 jamaah, kamar/regu manasik, sesi, pembayaran, pengumuman)
 go run ./cmd/seed/
 ```
+
+> Seed **menghapus** semua data jamaah, paket, pengumuman, dan manasik sebelum mengisi
+> data contoh. Hanya untuk development — jangan dijalankan di database production.
+> File contoh (bukti bayar, dokumen) ditulis ke `./uploads` lokal, bukan ke volume Docker.
 
 ## Development (Frontend Only)
 

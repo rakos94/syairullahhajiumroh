@@ -1,16 +1,78 @@
+# Local development:   make docker-up   (starts MongoDB only; run the app with `make run`)
+# Full app in Docker:  docker compose up -d --build                      -> http://localhost:8080
+# Production + HTTPS:  DOMAIN=haji.example.com docker compose --profile https up -d --build
+#
+# Values come from .env (see .env.example). Change JWT_SECRET, ADMIN_PASSWORD and
+# MONGO_PASSWORD before exposing this to the internet.
+
 services:
   mongodb:
     image: mongo:7
     container_name: syairullah-mongo
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      # Only reachable from this machine (for local dev / backups), never the internet.
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-secret}
       MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-syairullah_hajiumroh}
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    build: .
+    image: syairullah-app:latest
+    container_name: syairullah-app
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-secret}@mongodb:27017
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-syairullah_hajiumroh}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    ports:
+      - "${APP_PUBLISH_PORT:-8080}:8080"
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # HTTPS reverse proxy with automatic Let's Encrypt certificates.
+  # Needs a public DNS record for DOMAIN pointing at this server and ports 80/443 open.
+  # Camera QR scanning on phones only works over HTTPS.
+  caddy:
+    image: caddy:2-alpine
+    container_name: syairullah-caddy
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   mongo_data:
+  uploads:
+  caddy_data:
+  caddy_config:

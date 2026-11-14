@@ -49,6 +49,10 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
 	}
+	if paket.Harga < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
+		return
+	}
 	for i, tk := range paket.TanggalKeberangkatan {
 		if strings.TrimSpace(tk.Nama) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
@@ -165,6 +169,10 @@ func (h *PaketHandler) Update(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
+	}
+	if paket.Harga < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
+		return
 	}
 	for i, tk := range paket.TanggalKeberangkatan {
 		if strings.TrimSpace(tk.Nama) == "" {

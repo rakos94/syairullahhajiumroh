@@ -60,6 +60,26 @@ func formatDate(t time.Time) string {
 	return fmt.Sprintf("%02d/%02d/%04d", t.Day(), t.Month(), t.Year())
 }
 
+// formatRupiah formats 25000000 as "Rp 25.000.000".
+func formatRupiah(v float64) string {
+	neg := v < 0
+	if neg {
+		v = -v
+	}
+	s := fmt.Sprintf("%.0f", v)
+	var out []byte
+	for i := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, '.')
+		}
+		out = append(out, s[i])
+	}
+	if neg {
+		return "-Rp " + string(out)
+	}
+	return "Rp " + string(out)
+}
+
 func formatBool(b bool) string {
 	if b {
 		return "Ya"
@@ -129,5 +149,6 @@ func diffPaket(old, new *model.Paket) []model.FieldChange {
 	diffField(&changes, "Tipe", old.Tipe, new.Tipe)
 	diffField(&changes, "Tahun", fmt.Sprintf("%d", old.Tahun), fmt.Sprintf("%d", new.Tahun))
 	diffField(&changes, "Bulan", fmt.Sprintf("%d", old.Bulan), fmt.Sprintf("%d", new.Bulan))
+	diffField(&changes, "Harga", formatRupiah(old.Harga), formatRupiah(new.Harga))
 	return changes
 }

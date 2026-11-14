@@ -372,3 +372,30 @@ export async function unmarkHadir(sesiId, jamaahId) {
   const res = await authFetch(`${BASE}/manasik/sesi/${sesiId}/hadir/${jamaahId}`, { method: 'DELETE' });
   return jsonOrThrow(res, 'Gagal membatalkan kehadiran');
 }
+
+// Tagihan (outstanding balance report)
+function tagihanParams({ paket_id = '', belum_lunas = false } = {}) {
+  const params = new URLSearchParams();
+  if (paket_id) params.set('paket_id', paket_id);
+  if (belum_lunas) params.set('belum_lunas', 'true');
+  return params;
+}
+
+export async function fetchTagihan(filters) {
+  const res = await authFetch(`${BASE}/tagihan?${tagihanParams(filters)}`);
+  return jsonOrThrow(res, 'Gagal memuat laporan tagihan');
+}
+
+export async function downloadTagihanExcel(filters) {
+  const res = await authFetch(`${BASE}/tagihan/export?${tagihanParams(filters)}`);
+  if (!res.ok) await jsonOrThrow(res, 'Gagal mengunduh excel');
+  const match = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : 'laporan-tagihan.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

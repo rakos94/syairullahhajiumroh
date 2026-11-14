@@ -206,6 +206,24 @@ func (r *JamaahRepository) FindByPaket(ctx context.Context, paketID primitive.Ob
 	return results, nil
 }
 
+// FindActive returns all non-deleted jamaah, optionally of one paket, sorted by name.
+func (r *JamaahRepository) FindActive(ctx context.Context, paketID *primitive.ObjectID) ([]model.Jamaah, error) {
+	filter := bson.M{"deleted_at": nil}
+	if paketID != nil {
+		filter["paket_id"] = *paketID
+	}
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "nama", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	results := []model.Jamaah{}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 // FindLeaders returns the ketua regu of (paket, rombongan, regu) and the
 // ketua rombongan of (paket, rombongan). Empty rombongan/regu yields nothing.
 func (r *JamaahRepository) FindLeaders(ctx context.Context, paketID primitive.ObjectID, rombongan, regu string) (ketuaRegu, ketuaRombongan []model.Jamaah, err error) {

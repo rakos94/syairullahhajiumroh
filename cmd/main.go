@@ -89,6 +89,17 @@ func main() {
 	r := gin.Default()
 	api := r.Group("/api")
 
+	// Health check for Docker / load balancers.
+	api.GET("/health", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if err := client.Ping(ctx, nil); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "mongodb": "unreachable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	// Public routes (login rate limited: 30 attempts per 5 minutes per IP)
 	loginLimiter := middleware.NewRateLimiter(30, 5*time.Minute)
 	authHandler.RegisterPublicRoutes(api, loginLimiter.Middleware())
@@ -109,6 +120,7 @@ func main() {
 	protected.GET("/statistics", statisticsHandler.GetStatistics)
 	pengumumanHandler.RegisterRoutes(protected)
 	manasikHandler.RegisterRoutes(protected)
+	handler.NewTagihanHandler(jamaahRepo, paketRepo).RegisterRoutes(protected)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

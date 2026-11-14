@@ -17,6 +17,37 @@ function waNumber(hp) {
   return digits;
 }
 
+function StatusList({ title, items }) {
+  if (!items || items.length === 0) return null;
+  const done = items.filter((i) => i.selesai).length;
+  return (
+    <div>
+      <div className="flex justify-between items-baseline">
+        <p className="text-xs uppercase tracking-wide text-gray-500">{title}</p>
+        <p className="text-xs text-gray-500">
+          {done}/{items.length}
+        </p>
+      </div>
+      <ul className="mt-1 space-y-1">
+        {items.map((i) => (
+          <li key={i.nama} className="flex items-center gap-2 text-sm">
+            <span
+              aria-hidden="true"
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                i.selesai ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              {i.selesai ? '✓' : '!'}
+            </span>
+            <span className={i.selesai ? 'text-gray-700' : 'text-gray-900 font-medium'}>{i.nama}</span>
+            <span className="sr-only">{i.selesai ? 'sudah' : 'belum'}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function KontakKetua({ label, list }) {
   if (!list || list.length === 0) return null;
   return (
@@ -187,6 +218,18 @@ export default function CekKamarCard() {
             <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-4">
               <KontakKetua label="Ketua Regu" list={result.ketua_regu} />
               <KontakKetua label="Ketua Rombongan" list={result.ketua_rombongan} />
+            </div>
+          )}
+
+          {(result.kelengkapan?.length > 0 || result.dokumen?.length > 0) && (
+            <div className="mt-4 space-y-4 rounded-lg border border-gray-200 p-4">
+              <StatusList title="Kelengkapan" items={result.kelengkapan} />
+              <StatusList title="Dokumen diterima kantor" items={result.dokumen} />
+              {[...(result.kelengkapan || []), ...(result.dokumen || [])].some((i) => !i.selesai) && (
+                <p className="text-xs text-gray-500">
+                  Tanda ! berarti belum lengkap. Hubungi kantor Syairullah jika menurut Anda sudah diserahkan.
+                </p>
+              )}
             </div>
           )}
 

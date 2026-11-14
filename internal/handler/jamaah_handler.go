@@ -82,6 +82,7 @@ func (h *JamaahHandler) populatePaket(c *gin.Context, list []model.Jamaah) {
 		if p, ok := paketMap[list[i].PaketID]; ok {
 			list[i].Paket = p
 		}
+		list[i].Tagihan = model.HitungTagihan(&list[i], list[i].Paket)
 	}
 }
 
@@ -230,6 +231,7 @@ func (h *JamaahHandler) FindByID(c *gin.Context) {
 			jamaah.Paket = paket
 		}
 	}
+	jamaah.Tagihan = model.HitungTagihan(jamaah, jamaah.Paket)
 
 	c.JSON(http.StatusOK, jamaah)
 }
@@ -296,6 +298,19 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 			return
 		}
 	}
+
+	// The edit form never sends uploaded documents or creation time, and the
+	// repository $sets the whole struct. Keep the stored values so an edit
+	// doesn't wipe them (documents are managed via the upload endpoints).
+	jamaah.FotoKTP = oldJamaah.FotoKTP
+	jamaah.FotoKK = oldJamaah.FotoKK
+	jamaah.FotoPaspor = oldJamaah.FotoPaspor
+	jamaah.Pasfoto = oldJamaah.Pasfoto
+	jamaah.FotoKoperDiterima = oldJamaah.FotoKoperDiterima
+	jamaah.BuktiDP = oldJamaah.BuktiDP
+	jamaah.BuktiPelunasan = oldJamaah.BuktiPelunasan
+	jamaah.CreatedAt = oldJamaah.CreatedAt
+	jamaah.DeletedAt = oldJamaah.DeletedAt
 
 	if err := h.repo.Update(c.Request.Context(), id, &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {

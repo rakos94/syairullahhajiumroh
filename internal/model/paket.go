@@ -23,6 +23,8 @@ type Paket struct {
 	Tahun                int                         `json:"tahun" bson:"tahun" binding:"required"`
 	Bulan                int                         `json:"bulan,omitempty" bson:"bulan,omitempty"`
 	TanggalKeberangkatan []TanggalKeberangkatanPaket `json:"tanggal_keberangkatan,omitempty" bson:"tanggal_keberangkatan,omitempty"`
+	// Harga is the package price per jamaah in Rupiah; 0 = not set yet.
+	Harga float64 `json:"harga" bson:"harga"`
 	Label                string                      `json:"label" bson:"-"`
 	CreatedAt            time.Time                   `json:"created_at" bson:"created_at"`
 	UpdatedAt            time.Time                   `json:"updated_at" bson:"updated_at"`

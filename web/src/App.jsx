@@ -14,6 +14,7 @@ import Home from './pages/Home';
 import PengumumanList from './pages/PengumumanList';
 import Manasik from './pages/Manasik';
 import SesiManasik from './pages/SesiManasik';
+import Tagihan from './pages/Tagihan';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="/pengumuman" element={<PengumumanList />} />
                 <Route path="/manasik" element={<Manasik />} />
                 <Route path="/manasik/sesi/:id" element={<SesiManasik />} />
+                <Route path="/tagihan" element={<Tagihan />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
+import { formatRupiah } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
 
 const singleDocTypes = [
@@ -158,6 +159,49 @@ export default function JamaahDetail() {
           />
         </div>
       </div>
+
+      {/* Tagihan */}
+      {jamaah.tagihan && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tagihan</h2>
+          {jamaah.tagihan.harga_diatur ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Harga paket</p>
+                <p className="text-lg font-semibold text-gray-900">{formatRupiah(jamaah.tagihan.harga)}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Sudah dibayar</p>
+                <p className="text-lg font-semibold text-gray-900">{formatRupiah(jamaah.tagihan.total_dibayar)}</p>
+              </div>
+              <div
+                className={`rounded-lg border p-4 ${
+                  jamaah.tagihan.sisa > 0 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                }`}
+              >
+                <p className="text-sm text-gray-600">{jamaah.tagihan.sisa < 0 ? 'Kelebihan bayar' : 'Sisa tagihan'}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {jamaah.tagihan.sisa > 0 ? formatRupiah(jamaah.tagihan.sisa) : jamaah.tagihan.sisa < 0 ? formatRupiah(-jamaah.tagihan.sisa) : 'Lunas'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600">
+              Sudah dibayar <b>{formatRupiah(jamaah.tagihan.total_dibayar)}</b>. Harga paket belum diatur, jadi sisa
+              tagihan belum bisa dihitung. Atur harga di menu{' '}
+              <Link to="/paket" className="text-emerald-700 hover:underline">Paket</Link>.
+            </p>
+          )}
+          {jamaah.tagihan.harga_diatur && jamaah.status_pembayaran === 'lunas' && jamaah.tagihan.sisa > 0 && (
+            <p className="mt-3 text-sm text-amber-700">
+              Status pembayaran Lunas, tetapi total bukti pembayaran masih kurang dari harga paket.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-gray-500">
+            Dihitung dari nominal bukti DP dan bukti pelunasan yang diunggah di bawah.
+          </p>
+        </div>
+      )}
 
       {/* Documents */}
       <div className="bg-white shadow rounded-lg p-6">
