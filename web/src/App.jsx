@@ -9,11 +9,13 @@ import AdminList from './pages/AdminList';
 import AuditLog from './pages/AuditLog';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import CekKamar from './pages/CekKamar';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/cek-kamar" element={<CekKamar />} />
       <Route
         path="/*"
         element={

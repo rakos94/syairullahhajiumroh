@@ -612,6 +612,7 @@ func (h *JamaahHandler) RegisterRoutes(r *gin.RouterGroup) {
 	jamaah := r.Group("/jamaah")
 	{
 		jamaah.POST("", h.Create)
+		jamaah.PUT("/bulk-manasik", h.BulkManasik)
 		jamaah.GET("", h.FindAll)
 		jamaah.GET("/:id", h.FindByID)
 		jamaah.PUT("/:id", h.Update)

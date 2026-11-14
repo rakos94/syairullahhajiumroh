@@ -35,6 +35,8 @@ type Jamaah struct {
 	BatikNasionalSudahDijahit bool               `json:"batik_nasional_sudah_dijahit" bson:"batik_nasional_sudah_dijahit"`
 	BatikKBIHSudahDiterima    bool               `json:"batik_kbih_sudah_diterima" bson:"batik_kbih_sudah_diterima"`
 	KoperSudahDiterima        bool               `json:"koper_sudah_diterima" bson:"koper_sudah_diterima"`
+	GedungManasik             string             `json:"gedung_manasik" bson:"gedung_manasik"`
+	KamarManasik              string             `json:"kamar_manasik" bson:"kamar_manasik"`
 	FotoKTP                   string             `json:"foto_ktp" bson:"foto_ktp"`
 	FotoKK                    string             `json:"foto_kk" bson:"foto_kk"`
 	FotoPaspor                string             `json:"foto_paspor" bson:"foto_paspor"`

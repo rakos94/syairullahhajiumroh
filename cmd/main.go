@@ -92,6 +92,10 @@ func main() {
 	authHandler.RegisterPublicRoutes(api, loginLimiter.Middleware())
 	api.GET("/jamaah/:id/dokumen/:docType", jamaahHandler.GetDocument)
 
+	// Public self-service lookup for jamaah (rate limited: 20 attempts per 5 minutes per IP)
+	portalLimiter := middleware.NewRateLimiter(20, 5*time.Minute)
+	handler.NewPortalHandler(jamaahRepo, paketRepo).RegisterRoutes(api, portalLimiter.Middleware())
+
 	// Protected routes
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret))

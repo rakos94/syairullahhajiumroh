@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchJamaah, deleteJamaah, fetchPaketList } from '../api';
+import { fetchJamaah, deleteJamaah, fetchPaketList, bulkSetManasik } from '../api';
 import StatusBadge from '../components/StatusBadge';
 
 const PAGE_SIZE = 10;
@@ -19,6 +19,14 @@ export default function JamaahList() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const navigate = useNavigate();
+
+  // Bulk manasik assignment. Selection is keyed by id and survives paging/filtering.
+  const [selected, setSelected] = useState({});
+  const [bulkGedung, setBulkGedung] = useState('');
+  const [bulkKamar, setBulkKamar] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState('');
+  const selectedIds = Object.keys(selected);
 
   useEffect(() => {
     fetchPaketList().then(setPaketOptions).catch(() => {});
@@ -63,6 +71,62 @@ export default function JamaahList() {
       setError(err.message);
     }
   };
+
+  const isHaji = (j) => j.paket?.tipe === 'haji';
+  const hajiOnPage = jamaahList.filter(isHaji);
+  const allPageSelected = hajiOnPage.length > 0 && hajiOnPage.every((j) => selected[j.id]);
+
+  const toggleOne = (j) => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[j.id]) delete next[j.id];
+      else next[j.id] = j.nama;
+      return next;
+    });
+  };
+
+  const togglePage = () => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      hajiOnPage.forEach((j) => {
+        if (allPageSelected) delete next[j.id];
+        else next[j.id] = j.nama;
+      });
+      return next;
+    });
+  };
+
+  const applyBulk = async (clear = false) => {
+    const payload = clear
+      ? { gedung_manasik: '', kamar_manasik: '' }
+      : {
+          gedung_manasik: bulkGedung.trim() || undefined,
+          kamar_manasik: bulkKamar.trim() || undefined,
+        };
+    if (!clear && !payload.gedung_manasik && !payload.kamar_manasik) {
+      setBulkMsg('Isi gedung atau kamar terlebih dahulu');
+      return;
+    }
+    if (clear && !confirm(`Hapus penempatan gedung & kamar untuk ${selectedIds.length} jamaah?`)) return;
+
+    setBulkSaving(true);
+    setBulkMsg('');
+    try {
+      const res = await bulkSetManasik(selectedIds, payload);
+      setSelected({});
+      setBulkGedung('');
+      setBulkKamar('');
+      setBulkMsg(res.message);
+      loadData();
+    } catch (err) {
+      setBulkMsg(err.message);
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const bulkInputClass =
+    'px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-36';
 
   return (
     <div>
@@ -115,8 +179,69 @@ export default function JamaahList() {
           <option value="batik_nasional_belum">Batik Nasional Belum</option>
           <option value="batik_kbih_belum">Batik KBIH Belum</option>
           <option value="koper_belum">Koper Belum</option>
+          <option value="manasik_belum">Kamar Manasik Belum</option>
         </select>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="text-sm font-medium text-emerald-900 whitespace-nowrap">
+              {selectedIds.length} jamaah dipilih
+            </p>
+            <input
+              value={bulkGedung}
+              onChange={(e) => setBulkGedung(e.target.value)}
+              placeholder="Gedung"
+              aria-label="Gedung manasik"
+              className={bulkInputClass}
+            />
+            <input
+              value={bulkKamar}
+              onChange={(e) => setBulkKamar(e.target.value)}
+              placeholder="Kamar"
+              aria-label="Kamar manasik"
+              className={bulkInputClass}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => applyBulk(false)}
+                disabled={bulkSaving}
+                className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {bulkSaving ? 'Menyimpan...' : 'Atur Kamar'}
+              </button>
+              <button
+                onClick={() => applyBulk(true)}
+                disabled={bulkSaving}
+                className="px-4 py-2 bg-white text-red-600 text-sm font-medium rounded-md border border-red-200 hover:bg-red-50 disabled:opacity-50"
+              >
+                Hapus Penempatan
+              </button>
+              <button
+                onClick={() => setSelected({})}
+                disabled={bulkSaving}
+                className="px-4 py-2 text-gray-600 text-sm font-medium rounded-md hover:bg-gray-100"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-emerald-800">
+            Kolom yang dikosongkan tidak diubah. Pilihan tetap tersimpan saat pindah halaman atau
+            mengganti filter.
+          </p>
+        </div>
+      )}
+
+      {bulkMsg && (
+        <div className="mb-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm flex justify-between gap-3">
+          <span>{bulkMsg}</span>
+          <button onClick={() => setBulkMsg('')} className="text-blue-600 hover:text-blue-900" aria-label="Tutup">
+            ✕
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
@@ -134,6 +259,17 @@ export default function JamaahList() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="pl-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      disabled={hajiOnPage.length === 0}
+                      onChange={togglePage}
+                      title="Pilih semua jamaah haji di halaman ini"
+                      aria-label="Pilih semua jamaah haji di halaman ini"
+                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-30"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
                     No
                   </th>
@@ -145,6 +281,9 @@ export default function JamaahList() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Paket
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Gedung / Kamar
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Status
@@ -161,6 +300,17 @@ export default function JamaahList() {
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => navigate(`/jamaah/${j.id}`)}
                   >
+                    <td className="pl-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      {isHaji(j) && (
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selected[j.id])}
+                          onChange={() => toggleOne(j)}
+                          aria-label={`Pilih ${j.nama}`}
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                      )}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
@@ -172,6 +322,17 @@ export default function JamaahList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {j.paket?.label || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {!isHaji(j) ? (
+                        <span className="text-gray-300">-</span>
+                      ) : j.gedung_manasik || j.kamar_manasik ? (
+                        <span className="text-gray-700">
+                          {j.gedung_manasik || '?'} / {j.kamar_manasik || '?'}
+                        </span>
+                      ) : (
+                        <span className="text-amber-600">Belum</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={j.status_pembayaran} />

@@ -19,6 +19,8 @@ const emptyForm = {
   batik_nasional_sudah_dijahit: false,
   batik_kbih_sudah_diterima: false,
   koper_sudah_diterima: false,
+  gedung_manasik: '',
+  kamar_manasik: '',
   keterangan: '',
 };
 
@@ -72,6 +74,8 @@ export default function JamaahForm() {
             batik_nasional_sudah_dijahit: data.batik_nasional_sudah_dijahit || false,
             batik_kbih_sudah_diterima: data.batik_kbih_sudah_diterima || false,
             koper_sudah_diterima: data.koper_sudah_diterima || false,
+            gedung_manasik: data.gedung_manasik || '',
+            kamar_manasik: data.kamar_manasik || '',
             keterangan: data.keterangan || '',
           });
         })
@@ -338,6 +342,32 @@ export default function JamaahForm() {
               className={inputClass}
             />
           </div>
+
+          {selectedPaket?.tipe === 'haji' && (
+            <>
+              <div>
+                <label className={labelClass}>Gedung Manasik</label>
+                <input
+                  name="gedung_manasik"
+                  value={form.gedung_manasik}
+                  onChange={handleChange}
+                  placeholder="Contoh: Gedung A"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Kamar Manasik</label>
+                <input
+                  name="kamar_manasik"
+                  value={form.kamar_manasik}
+                  onChange={handleChange}
+                  placeholder="Contoh: 101"
+                  className={inputClass}
+                />
+              </div>
+            </>
+          )}
 
           <div className="md:col-span-2">
             <label className={labelClass}>Keterangan</label>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -67,6 +67,13 @@ export default function Login() {
             {loading ? 'Memproses...' : 'Login'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Jamaah?{' '}
+          <Link to="/cek-kamar" className="font-medium text-emerald-700 hover:underline">
+            Cek kamar manasik Anda
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -225,3 +225,30 @@ export async function fetchAuditLogsByEntity(entityType, entityId, { page = 1, l
   if (!res.ok) throw new Error('Gagal memuat audit log');
   return res.json();
 }
+
+// Public: jamaah self-service manasik room lookup (no auth)
+export async function cekKamarManasik(nik, tanggal_lahir) {
+  const res = await fetch(`${BASE}/portal/cek-kamar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nik, tanggal_lahir }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Terlalu banyak percobaan, silakan coba lagi beberapa menit lagi');
+    throw new Error(data.error || 'Gagal memuat data');
+  }
+  return data;
+}
+
+// Bulk set gedung/kamar manasik. Omit a field (undefined) to leave it unchanged; '' clears it.
+export async function bulkSetManasik(ids, { gedung_manasik, kamar_manasik }) {
+  const res = await authFetch(`${BASE}/jamaah/bulk-manasik`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, gedung_manasik, kamar_manasik }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Gagal mengatur kamar manasik');
+  return data;
+}

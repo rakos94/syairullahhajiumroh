@@ -70,6 +70,8 @@ func main() {
 	umrohMei2026 := paketIDs["umroh-May"]
 
 	// Seed jamaah data
+	// Manasik rooms: haji jamaah 1,5,11 (laki-laki) -> Gedung A, 2,12,14 (perempuan) -> Gedung B.
+	// Nurul Hidayah and Abdullah Rahman are left unassigned on purpose.
 	dummies := []model.Jamaah{
 		{
 			Nama: "ahmad fauzi", NIK: "3201010101010001", NomorPaspor: "A1000001",
@@ -79,6 +81,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "lunas", NoRekeningHaji: "1234567890", TipeBank: "BRI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: true, KoperSudahDiterima: true,
+			GedungManasik: "Gedung A", KamarManasik: "101",
 		},
 		{
 			Nama: "siti aisyah", NIK: "3201010101010002", NomorPaspor: "A1000002",
@@ -88,6 +91,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "dp", NoRekeningHaji: "1234567891", TipeBank: "BNI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: false, KoperSudahDiterima: false,
+			GedungManasik: "Gedung B", KamarManasik: "201",
 		},
 		{
 			Nama: "muhammad rizki", NIK: "3201010101010003", NomorPaspor: "A1000003",
@@ -114,6 +118,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "lunas", NoRekeningHaji: "9876543210", TipeBank: "BSI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: true, KoperSudahDiterima: true,
+			GedungManasik: "Gedung A", KamarManasik: "101",
 		},
 		{
 			Nama: "nurul hidayah", NIK: "3201010101010006", NomorPaspor: "A1000006",
@@ -165,6 +170,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "lunas", NoRekeningHaji: "6677889900", TipeBank: "BSI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: true, KoperSudahDiterima: true,
+			GedungManasik: "Gedung A", KamarManasik: "102",
 		},
 		{
 			Nama: "zainab husna", NIK: "3201010101010012", NomorPaspor: "A1000012",
@@ -174,6 +180,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "dp", NoRekeningHaji: "4455667788", TipeBank: "BRI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: false, KoperSudahDiterima: false,
+			GedungManasik: "Gedung B", KamarManasik: "201",
 		},
 		{
 			Nama: "yusuf hakim", NIK: "3201010101010013", NomorPaspor: "A1000013",
@@ -191,6 +198,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Nama: "JKG", Tanggal: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "lunas", NoRekeningHaji: "7788990011", TipeBank: "BNI",
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: true, KoperSudahDiterima: true,
+			GedungManasik: "Gedung B", KamarManasik: "201",
 		},
 	}
 

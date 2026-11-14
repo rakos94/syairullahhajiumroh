@@ -97,6 +97,12 @@ export default function JamaahDetail() {
       : '-'],
     ['No Rekening Haji', jamaah.no_rekening_haji || '-'],
     ['Tipe Bank', jamaah.tipe_bank || '-'],
+    ...(jamaah.paket?.tipe === 'haji'
+      ? [
+          ['Gedung Manasik', jamaah.gedung_manasik || '-'],
+          ['Kamar Manasik', jamaah.kamar_manasik || '-'],
+        ]
+      : []),
     ['Keterangan', jamaah.keterangan || '-'],
   ];
 

@@ -66,6 +66,19 @@ func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.Objec
 		filter["batik_kbih_sudah_diterima"] = bson.M{"$ne": true}
 	case "koper_belum":
 		filter["koper_sudah_diterima"] = bson.M{"$ne": true}
+	case "manasik_belum":
+		// Only haji jamaah do manasik; list those still missing gedung or kamar.
+		hajiIDs, err := r.collection.Database().Collection("paket").Distinct(ctx, "_id", bson.M{"tipe": "haji"})
+		if err != nil {
+			return nil, 0, err
+		}
+		filter["$and"] = bson.A{
+			bson.M{"paket_id": bson.M{"$in": hajiIDs}},
+			bson.M{"$or": bson.A{
+				bson.M{"gedung_manasik": bson.M{"$in": bson.A{"", nil}}},
+				bson.M{"kamar_manasik": bson.M{"$in": bson.A{"", nil}}},
+			}},
+		}
 	}
 	if search != "" {
 		regex := bson.M{"$regex": search, "$options": "i"}
@@ -105,6 +118,50 @@ func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) 
 		return nil, err
 	}
 	return &jamaah, nil
+}
+
+func (r *JamaahRepository) FindByNIK(ctx context.Context, nik string) (*model.Jamaah, error) {
+	var jamaah model.Jamaah
+	err := r.collection.FindOne(ctx, bson.M{"nik": nik, "deleted_at": nil}).Decode(&jamaah)
+	if err != nil {
+		return nil, err
+	}
+	return &jamaah, nil
+}
+
+func (r *JamaahRepository) FindByIDs(ctx context.Context, ids []primitive.ObjectID) ([]model.Jamaah, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []model.Jamaah
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// SetManasik sets gedung/kamar manasik on many jamaah at once. Only non-nil
+// values are written, so callers can update just the gedung or just the kamar.
+func (r *JamaahRepository) SetManasik(ctx context.Context, ids []primitive.ObjectID, gedung, kamar *string) (int64, error) {
+	set := bson.M{"updated_at": time.Now()}
+	if gedung != nil {
+		set["gedung_manasik"] = *gedung
+	}
+	if kamar != nil {
+		set["kamar_manasik"] = *kamar
+	}
+	res, err := r.collection.UpdateMany(
+		ctx,
+		bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil},
+		bson.M{"$set": set},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
 }
 
 func (r *JamaahRepository) Update(ctx context.Context, id primitive.ObjectID, jamaah *model.Jamaah) error {
