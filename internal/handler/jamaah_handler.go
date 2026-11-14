@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"syairullahhajiumroh/internal/middleware"
 	"syairullahhajiumroh/internal/model"
 	"syairullahhajiumroh/internal/repository"
 
@@ -45,10 +46,11 @@ type JamaahHandler struct {
 	paketRepo *repository.PaketRepository
 	auditRepo *repository.AuditLogRepository
 	uploadDir string
+	secret    string // signs document links and checks admin tokens
 }
 
-func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, auditRepo *repository.AuditLogRepository, uploadDir string) *JamaahHandler {
-	return &JamaahHandler{repo: repo, paketRepo: paketRepo, auditRepo: auditRepo, uploadDir: uploadDir}
+func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, auditRepo *repository.AuditLogRepository, uploadDir, secret string) *JamaahHandler {
+	return &JamaahHandler{repo: repo, paketRepo: paketRepo, auditRepo: auditRepo, uploadDir: uploadDir, secret: secret}
 }
 
 // populatePaket populates the transient Paket field for a slice of jamaah.
@@ -236,6 +238,7 @@ func (h *JamaahHandler) FindByID(c *gin.Context) {
 		}
 	}
 	jamaah.Tagihan = model.HitungTagihan(jamaah, jamaah.Paket)
+	jamaah.DokumenAkses = newDokumenAkses(h.secret, jamaah.ID)
 
 	c.JSON(http.StatusOK, jamaah)
 }
@@ -500,6 +503,14 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id tidak valid"})
+		return
+	}
+
+	// Documents (KTP, KK, paspor, receipts...) are private: require either a
+	// signed link from the admin detail page or an admin token.
+	if !validDokumenAkses(h.secret, id, c.Query("exp"), c.Query("sig")) &&
+		!middleware.ValidBearerToken(h.secret, c.GetHeader("Authorization")) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "akses dokumen tidak valid atau sudah kedaluwarsa, muat ulang halaman"})
 		return
 	}
 

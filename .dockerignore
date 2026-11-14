@@ -13,3 +13,5 @@ web/dist/
 docker-compose.yml
 Dockerfile
 Caddyfile
+backups/
+scripts/

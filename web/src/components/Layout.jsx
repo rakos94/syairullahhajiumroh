@@ -64,6 +64,20 @@ export default function Layout({ children }) {
           </div>
         </div>
       </nav>
+      {user?.password_default && (
+        <div role="alert" className="bg-red-600 text-white print:hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 text-sm flex flex-wrap items-center justify-between gap-2">
+            <span>
+              <b>Password Anda masih default (admin123).</b> Siapa pun yang tahu password ini bisa masuk sebagai admin.
+            </span>
+            {user.role === 'super' && (
+              <Link to="/admin" className="font-semibold underline whitespace-nowrap">
+                Ganti password sekarang →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 print:p-0 print:max-w-none">
         {children}
       </main>

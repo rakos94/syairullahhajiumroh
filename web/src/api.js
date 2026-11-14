@@ -148,20 +148,34 @@ export async function uploadDocument(id, docType, file, nominal) {
   return res.json();
 }
 
-export function getDocumentUrl(id, docType) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}`;
+// Document links need the short-lived signature (`dokumen_akses`) returned by
+// fetchJamaahById, because <img>/<a> can't send the Authorization header.
+function documentUrl(id, docType, akses, { index, download, cacheKey } = {}) {
+  const params = new URLSearchParams();
+  if (index !== undefined) params.set('index', index);
+  if (download) params.set('download', 'true');
+  if (akses) {
+    params.set('exp', akses.exp);
+    params.set('sig', akses.sig);
+  }
+  if (cacheKey) params.set('_t', cacheKey);
+  return `${BASE}/jamaah/${id}/dokumen/${docType}?${params}`;
 }
 
-export function getDocumentDownloadUrl(id, docType) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?download=true`;
+export function getDocumentUrl(id, docType, akses, cacheKey) {
+  return documentUrl(id, docType, akses, { cacheKey });
 }
 
-export function getMultiDocumentUrl(id, docType, index) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`;
+export function getDocumentDownloadUrl(id, docType, akses) {
+  return documentUrl(id, docType, akses, { download: true });
 }
 
-export function getMultiDocumentDownloadUrl(id, docType, index) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}&download=true`;
+export function getMultiDocumentUrl(id, docType, index, akses, cacheKey) {
+  return documentUrl(id, docType, akses, { index, cacheKey });
+}
+
+export function getMultiDocumentDownloadUrl(id, docType, index, akses) {
+  return documentUrl(id, docType, akses, { index, download: true });
 }
 
 export async function deleteDocument(id, docType, index) {

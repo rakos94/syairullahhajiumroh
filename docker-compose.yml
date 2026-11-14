@@ -1,9 +1,12 @@
-# Local development:   make docker-up   (starts MongoDB only; run the app with `make run`)
-# Full app in Docker:  docker compose up -d --build                      -> http://localhost:8080
-# Production + HTTPS:  DOMAIN=haji.example.com docker compose --profile https up -d --build
+# Local development:   make docker-up      (MongoDB only; run the app with `make run`)
+# Full app in Docker:  make docker-app     -> http://localhost:8080
+# Production + HTTPS:  make docker-https   (needs DOMAIN in .env)
+# Backups:             make backup / make backup-list / make restore BACKUP=backup-...
 #
-# Values come from .env (see .env.example). Change JWT_SECRET, ADMIN_PASSWORD and
-# MONGO_PASSWORD before exposing this to the internet.
+# Values come from .env (see .env.example). In production the app refuses to
+# start with the default JWT_SECRET; see README "Keamanan".
+
+x-mongo-uri: &mongo-uri mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-secret}@mongodb:27017/?authSource=admin
 
 services:
   mongodb:
@@ -11,7 +14,7 @@ services:
     container_name: syairullah-mongo
     restart: unless-stopped
     ports:
-      # Only reachable from this machine (for local dev / backups), never the internet.
+      # Only reachable from this machine (for local dev / maintenance), never the internet.
       - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
@@ -25,6 +28,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks: [syairullah]
 
   app:
     build: .
@@ -35,13 +39,19 @@ services:
       mongodb:
         condition: service_healthy
     environment:
-      MONGODB_URI: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-secret}@mongodb:27017
+      MONGODB_URI: *mongo-uri
       MONGODB_DATABASE: ${MONGODB_DATABASE:-syairullah_hajiumroh}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-false}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
+      # Only Caddy (fixed IP below) may set X-Forwarded-For.
+      TRUSTED_PROXIES: 172.30.57.10
     ports:
-      - "${APP_PUBLISH_PORT:-8080}:8080"
+      # With HTTPS, `make docker-https` sets APP_BIND=127.0.0.1 so the app is
+      # only reachable through Caddy.
+      - "${APP_BIND:-0.0.0.0}:${APP_PUBLISH_PORT:-8080}:8080"
     volumes:
       - uploads:/app/uploads
     healthcheck:
@@ -50,6 +60,44 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    networks: [syairullah]
+
+  # Daily backup of MongoDB + uploads with rotation (keeps newest BACKUP_KEEP).
+  backup:
+    image: mongo:7
+    container_name: syairullah-backup
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    entrypoint: ["bash", "/backup.sh"]
+    command: ["schedule"]
+    environment:
+      MONGO_URI: *mongo-uri
+      MONGO_DB: ${MONGODB_DATABASE:-syairullah_hajiumroh}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_TIME: ${BACKUP_TIME:-02:00}
+      TZ: Asia/Jakarta
+    volumes:
+      - ./scripts/backup.sh:/backup.sh:ro
+      - uploads:/uploads:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    networks: [syairullah]
+
+  # One-off restore (make restore BACKUP=backup-YYYYmmdd-HHMMSS). Not started normally.
+  restore:
+    image: mongo:7
+    profiles: ["tools"]
+    entrypoint: ["bash", "/backup.sh", "restore"]
+    environment:
+      MONGO_URI: *mongo-uri
+      MONGO_DB: ${MONGODB_DATABASE:-syairullah_hajiumroh}
+      TZ: Asia/Jakarta
+    volumes:
+      - ./scripts/backup.sh:/backup.sh:ro
+      - uploads:/uploads
+      - ${BACKUP_DIR:-./backups}:/backups
+    networks: [syairullah]
 
   # HTTPS reverse proxy with automatic Let's Encrypt certificates.
   # Needs a public DNS record for DOMAIN pointing at this server and ports 80/443 open.
@@ -70,6 +118,15 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      syairullah:
+        ipv4_address: 172.30.57.10
+
+networks:
+  syairullah:
+    ipam:
+      config:
+        - subnet: 172.30.57.0/24
 
 volumes:
   mongo_data:

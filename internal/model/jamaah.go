@@ -56,6 +56,8 @@ type Jamaah struct {
 	Keterangan                string             `json:"keterangan" bson:"keterangan"`
 	// Computed from paket price and payment receipts; never stored.
 	Tagihan *Tagihan `json:"tagihan,omitempty" bson:"-"`
+	// Signed access for document links; only set on the admin detail endpoint.
+	DokumenAkses *DokumenAkses `json:"dokumen_akses,omitempty" bson:"-"`
 
 	CreatedAt                 time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                 time.Time          `json:"updated_at" bson:"updated_at"`

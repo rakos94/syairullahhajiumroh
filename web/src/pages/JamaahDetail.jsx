@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
 import { formatRupiah } from '../utils/format';
@@ -38,9 +38,12 @@ export default function JamaahDetail() {
   const [nominalUpload, setNominalUpload] = useState(null); // {docKey, label, file}
   const [cacheKey, setCacheKey] = useState(Date.now());
 
+  const loadedAtRef = useRef(0);
+
   const loadData = useCallback(async () => {
     try {
       const data = await fetchJamaahById(id);
+      loadedAtRef.current = Date.now();
       setJamaah(data);
       setError('');
     } catch (err) {
@@ -53,6 +56,31 @@ export default function JamaahDetail() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Document links carry a signature valid for 2 hours (dokumen_akses).
+  // Refresh it quietly before it expires so a page left open keeps working.
+  // Timed from our own last load, not the server's expiry, so a wrong
+  // computer clock can't cause refresh loops or missed refreshes.
+  const aksesSig = jamaah?.dokumen_akses?.sig;
+  useEffect(() => {
+    if (!aksesSig) return undefined;
+    const REFRESH_AFTER_MS = 90 * 60 * 1000;
+    const timer = setTimeout(loadData, REFRESH_AFTER_MS);
+    // Timers can be delayed while a laptop sleeps or the tab is in the
+    // background; check again when the admin comes back to the page.
+    const onReturn = () => {
+      if (document.visibilityState === 'visible' && Date.now() - loadedAtRef.current > REFRESH_AFTER_MS) {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+    };
+  }, [aksesSig, loadData]);
 
   const handleUpload = async (docType, file, nominal) => {
     try {
@@ -235,7 +263,7 @@ export default function JamaahDetail() {
             const filePath = jamaah[doc.field];
             const hasFile = Boolean(filePath);
             const isImage = hasFile && /\.(jpg|jpeg|png)$/i.test(filePath);
-            const docUrl = getDocumentUrl(id, doc.key) + `?_t=${cacheKey}`;
+            const docUrl = getDocumentUrl(id, doc.key, jamaah.dokumen_akses, cacheKey);
             return (
               <div
                 key={doc.key}
@@ -291,7 +319,7 @@ export default function JamaahDetail() {
                   </label>
                   {hasFile && (
                     <a
-                      href={getDocumentDownloadUrl(id, doc.key)}
+                      href={getDocumentDownloadUrl(id, doc.key, jamaah.dokumen_akses)}
                       className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-md hover:bg-emerald-100"
                     >
                       Download
@@ -333,7 +361,7 @@ export default function JamaahDetail() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {entries.map((entry, idx) => {
                     const isImage = /\.(jpg|jpeg|png)$/i.test(entry.file);
-                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx) + `&_t=${cacheKey}`;
+                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx, jamaah.dokumen_akses, cacheKey);
                     return (
                       <div key={idx} className="relative border border-gray-200 rounded-lg p-2 group">
                         {isImage ? (
@@ -362,7 +390,7 @@ export default function JamaahDetail() {
                           Rp {entry.nominal?.toLocaleString('id-ID') || '0'}
                         </p>
                         <a
-                          href={getMultiDocumentDownloadUrl(id, doc.key, idx)}
+                          href={getMultiDocumentDownloadUrl(id, doc.key, idx, jamaah.dokumen_akses)}
                           className="mt-1 flex items-center justify-center px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded hover:bg-emerald-100"
                         >
                           Download
