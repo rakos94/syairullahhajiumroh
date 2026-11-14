@@ -4,6 +4,7 @@ import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl
 import { formatRupiah } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
 import CopyButton from '../components/CopyButton';
+import NominalDialog from '../components/NominalDialog';
 
 const singleDocTypes = [
   { key: 'ktp', label: 'KTP', field: 'foto_ktp' },
@@ -34,6 +35,7 @@ export default function JamaahDetail() {
   const [error, setError] = useState('');
   const [uploadMsg, setUploadMsg] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [nominalUpload, setNominalUpload] = useState(null); // {docKey, label, file}
   const [cacheKey, setCacheKey] = useState(Date.now());
 
   const loadData = useCallback(async () => {
@@ -317,9 +319,7 @@ export default function JamaahDetail() {
                       if (e.target.files[0]) {
                         const file = e.target.files[0];
                         e.target.value = '';
-                        const nominal = prompt('Masukkan nominal pembayaran (Rp):');
-                        if (nominal === null) return;
-                        handleUpload(doc.key, file, Number(nominal.replace(/\D/g, '')) || 0);
+                        setNominalUpload({ docKey: doc.key, label: doc.label, file });
                       }
                     }}
                   />
@@ -383,6 +383,19 @@ export default function JamaahDetail() {
           );
         })}
       </div>
+
+      {nominalUpload && (
+        <NominalDialog
+          title={`${nominalUpload.label} — nominal pembayaran`}
+          file={nominalUpload.file}
+          sisa={jamaah.tagihan?.harga_diatur ? jamaah.tagihan.sisa : 0}
+          onCancel={() => setNominalUpload(null)}
+          onSubmit={async (nominal) => {
+            await handleUpload(nominalUpload.docKey, nominalUpload.file, nominal);
+            setNominalUpload(null);
+          }}
+        />
+      )}
 
       {/* Lightbox Modal */}
       {lightbox && (

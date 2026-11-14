@@ -191,7 +191,7 @@ export default function PaketList() {
             {editingId ? 'Edit Paket' : 'Tambah Paket Baru'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex flex-col sm:flex-row gap-3 items-start">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
                 <select
