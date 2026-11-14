@@ -51,3 +51,23 @@ func HitungTagihan(j *Jamaah, p *Paket) *Tagihan {
 	}
 	return t
 }
+
+// StatusOtomatis derives the payment status from the bill. It returns
+// ok=false when no price is set (status then stays manual).
+//
+//	no payment      -> belum_bayar
+//	paid >= price   -> lunas (also when overpaid)
+//	otherwise       -> dp
+func StatusOtomatis(t *Tagihan) (status string, ok bool) {
+	if t == nil || !t.HargaDiatur {
+		return "", false
+	}
+	switch {
+	case t.TotalDibayar <= 0:
+		return "belum_bayar", true
+	case t.Sisa <= 0:
+		return "lunas", true
+	default:
+		return "dp", true
+	}
+}

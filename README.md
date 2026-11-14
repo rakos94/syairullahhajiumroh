@@ -107,6 +107,20 @@ Yang sudah diatur otomatis:
   lewat HTTPS. Caddy menambahkan HSTS; aplikasi menambahkan header keamanan dasar.
 - Swagger (`/swagger`) mati di production kecuali `ENABLE_SWAGGER=true`.
 
+## Catatan Upgrade
+
+**Status pembayaran otomatis.** Untuk paket yang sudah punya harga, status pembayaran kini
+dihitung dari bukti DP & pelunasan yang diunggah (Belum Bayar / DP / Lunas) dan tidak bisa
+diubah manual. Saat pertama kali dijalankan, migrasi `009` menyesuaikan status semua jamaah
+dengan bukti yang ada.
+
+- **Sebelum upgrade:** buka menu **Tagihan** dan periksa jamaah dengan peringatan
+  "Status Lunas tetapi masih ada sisa tagihan". Unggah bukti pembayaran yang belum ada
+  (misalnya pembayaran tunai), karena tanpa bukti status mereka akan berubah menjadi DP atau
+  Belum Bayar.
+- **Setelah upgrade:** setiap perubahan dari migrasi tercatat di **Riwayat** dengan
+  pengguna `sistem` beserta status lama dan barunya.
+
 ## Backup & Restore
 
 `make docker-app` juga menjalankan service **backup** yang setiap hari pukul `BACKUP_TIME`

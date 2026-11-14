@@ -137,6 +137,8 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		}
 	}
 
+	applyStatusOtomatis(&jamaah, paket)
+
 	if err := h.repo.Create(c.Request.Context(), &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "jamaah dengan NIK atau nomor paspor tersebut sudah ada"})
@@ -322,6 +324,8 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 	jamaah.BuktiPelunasan = oldJamaah.BuktiPelunasan
 	jamaah.CreatedAt = oldJamaah.CreatedAt
 	jamaah.DeletedAt = oldJamaah.DeletedAt
+	// Receipts are known now, so the status can be derived (priced paket only).
+	applyStatusOtomatis(&jamaah, paket)
 
 	if err := h.repo.Update(c.Request.Context(), id, &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -483,6 +487,9 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 	}
 
 	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "upload", fmt.Sprintf("Upload dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
+	if multiDocTypes[docType] {
+		h.syncStatusAfterReceiptChange(c, id)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil diupload", docType), "path": relativePath})
 }
@@ -630,8 +637,23 @@ func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
 	}
 
 	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "delete_document", fmt.Sprintf("Menghapus dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
+	h.syncStatusAfterReceiptChange(c, id)
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
+}
+
+// syncStatusAfterReceiptChange reloads the jamaah (with its new receipts) and
+// updates the payment status if the paket has a price.
+func (h *JamaahHandler) syncStatusAfterReceiptChange(c *gin.Context, id primitive.ObjectID) {
+	j, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		return
+	}
+	p, err := h.paketRepo.FindByID(c.Request.Context(), j.PaketID)
+	if err != nil {
+		return
+	}
+	syncStatusPembayaran(c, h.repo, h.auditRepo, j, p)
 }
 
 // validateHargaJamaah checks the chosen price option and discount against

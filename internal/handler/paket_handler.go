@@ -224,6 +224,15 @@ func (h *PaketHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Price may have changed: recompute payment status of its jamaah.
+	if updated, err := h.repo.FindByID(c.Request.Context(), id); err == nil {
+		if list, err := h.jamaahRepo.FindActive(c.Request.Context(), &id); err == nil {
+			for i := range list {
+				syncStatusPembayaran(c, h.jamaahRepo, h.auditRepo, &list[i], updated)
+			}
+		}
+	}
+
 	// Sync jamaah departure dates
 	for _, tk := range paket.TanggalKeberangkatan {
 		_ = h.jamaahRepo.UpdateDepartureByPaket(c.Request.Context(), id, tk.Nama, tk.Tanggal)

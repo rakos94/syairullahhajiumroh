@@ -277,6 +277,25 @@ func main() {
 		log.Printf("[Pembayaran] %s: DP %.0f, pelunasan %.0f, %d dokumen", j.Nama, p.dp, p.pelunasan, len(p.docs))
 	}
 
+	// Payment status is derived from receipts for priced pakets (same rule
+	// as the app), so recompute it now that receipts exist.
+	paketByID := map[primitive.ObjectID]*model.Paket{}
+	for _, id := range paketIDs {
+		if p, err := paketRepo.FindByID(ctx, id); err == nil {
+			paketByID[id] = p
+		}
+	}
+	for _, j := range inserted {
+		fresh, err := jamaahRepo.FindByID(ctx, j.ID)
+		if err != nil {
+			continue
+		}
+		if status, ok := model.StatusOtomatis(model.HitungTagihan(fresh, paketByID[fresh.PaketID])); ok && status != fresh.StatusPembayaran {
+			jamaahRepo.UpdateField(ctx, j.ID, "status_pembayaran", status)
+			log.Printf("[Status] %s: %s -> %s", fresh.Nama, fresh.StatusPembayaran, status)
+		}
+	}
+
 	// Seed sesi manasik: day 1 with some attendance, day 2 empty.
 	manasikRepo := repository.NewManasikRepository(db)
 	sesi1 := &model.SesiManasik{PaketID: haji2026, Nama: "Hari 1 - Pagi", Tanggal: time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)}

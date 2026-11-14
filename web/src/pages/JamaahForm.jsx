@@ -67,6 +67,9 @@ export default function JamaahForm() {
   const [form, setForm] = useState(emptyForm);
   const [paketOptions, setPaketOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Total of uploaded DP + pelunasan receipts (edit mode); used to preview the
+  // automatic payment status.
+  const [totalDibayar, setTotalDibayar] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function JamaahForm() {
       setLoading(true);
       fetchJamaahById(id)
         .then((data) => {
+          setTotalDibayar(data.tagihan?.total_dibayar || 0);
           setForm({
             nama: data.nama || '',
             nik: data.nik || '',
@@ -128,6 +132,7 @@ export default function JamaahForm() {
     const payload = {
       ...form,
       tanggal_lahir: dateInputToIso(form.tanggal_lahir) || undefined,
+      status_pembayaran: statusOtomatis || form.status_pembayaran,
       tanggal_keberangkatan: form.tanggal_keberangkatan || undefined,
     };
 
@@ -150,6 +155,10 @@ export default function JamaahForm() {
   const paketPilihanHarga = selectedPaket?.pilihan_harga || [];
   const pilihanTerpilih = paketPilihanHarga.find((o) => o.nama === form.pilihan_harga);
   const hargaDasar = pilihanTerpilih ? pilihanTerpilih.harga : selectedPaket?.harga || 0;
+  // Same rule as the server: with a price, the status follows the receipts.
+  const hargaAkhir = Math.max(hargaDasar - form.potongan, 0);
+  const statusOtomatis =
+    hargaDasar > 0 ? (totalDibayar <= 0 ? 'belum_bayar' : totalDibayar >= hargaAkhir ? 'lunas' : 'dp') : null;
   const paketDepartures = selectedPaket?.tanggal_keberangkatan || [];
 
   const formatDmyFromIso = (isoStr) => {
@@ -347,19 +356,29 @@ export default function JamaahForm() {
         <Section title="Pembayaran">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className={labelClass}>
+              <label htmlFor="status_pembayaran" className={labelClass}>
                 Status Pembayaran <span className="text-red-500">*</span>
               </label>
               <select
+                id="status_pembayaran"
                 name="status_pembayaran"
-                value={form.status_pembayaran}
+                value={statusOtomatis || form.status_pembayaran}
                 onChange={handleChange}
-                className={inputClass}
+                disabled={Boolean(statusOtomatis)}
+                aria-describedby="status-pembayaran-hint"
+                className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-700`}
               >
                 <option value="belum_bayar">Belum Bayar</option>
                 <option value="dp">DP</option>
                 <option value="lunas">Lunas</option>
               </select>
+              <p id="status-pembayaran-hint" className="mt-1 text-xs text-gray-500">
+                {statusOtomatis
+                  ? 'Otomatis dari bukti DP & pelunasan yang diunggah.'
+                  : form.paket_id
+                    ? 'Diisi manual karena harga paket belum diatur.'
+                    : ''}
+              </p>
             </div>
 
             <div>

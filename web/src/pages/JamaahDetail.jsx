@@ -28,6 +28,17 @@ function formatDate(dateStr) {
   return `${day}/${month}/${year}`;
 }
 
+// Value with a copy button next to it; "-" when empty.
+function withCopy(value, label) {
+  if (!value) return '-';
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="tabular-nums">{value}</span>
+      <CopyButton text={value} label={label} />
+    </span>
+  );
+}
+
 export default function JamaahDetail() {
   const { id } = useParams();
   const [jamaah, setJamaah] = useState(null);
@@ -114,15 +125,10 @@ export default function JamaahDetail() {
 
   const infoRows = [
     ['Nama', jamaah.nama],
-    ['NIK', (
-      <span className="inline-flex items-center gap-1">
-        <span className="tabular-nums">{jamaah.nik}</span>
-        <CopyButton text={jamaah.nik} label="Salin NIK" />
-      </span>
-    )],
-    ['Nomor Paspor', jamaah.nomor_paspor || '-'],
+    ['NIK', withCopy(jamaah.nik, 'Salin NIK')],
+    ['Nomor Paspor', withCopy(jamaah.nomor_paspor, 'Salin nomor paspor')],
     ['Alamat', jamaah.alamat || '-'],
-    ['No HP', jamaah.no_hp || '-'],
+    ['No HP', withCopy(jamaah.no_hp, 'Salin No HP')],
     ['Tempat Lahir', jamaah.tempat_lahir || '-'],
     ['Tanggal Lahir', formatDate(jamaah.tanggal_lahir)],
     ['Jenis Kelamin', jamaah.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'],
@@ -132,7 +138,7 @@ export default function JamaahDetail() {
           ? `${jamaah.tanggal_keberangkatan.nama}${formatDate(jamaah.tanggal_keberangkatan.tanggal) !== '-' ? ` - ${formatDate(jamaah.tanggal_keberangkatan.tanggal)}` : ''}`
           : formatDate(jamaah.tanggal_keberangkatan.tanggal))
       : '-'],
-    ['No Rekening Haji', jamaah.no_rekening_haji || '-'],
+    ['No Rekening Haji', withCopy(jamaah.no_rekening_haji, 'Salin No Rekening Haji')],
     ['Tipe Bank', jamaah.tipe_bank || '-'],
     ...(jamaah.paket?.tipe === 'haji'
       ? [
