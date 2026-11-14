@@ -20,6 +20,8 @@ const actionColors = {
 const entityTypeLabels = {
   jamaah: 'Jamaah',
   paket: 'Paket',
+  pengumuman: 'Pengumuman',
+  manasik: 'Manasik',
 };
 
 function formatDate(dateStr) {
@@ -80,6 +82,8 @@ export default function AuditLog() {
           <option value="">Semua</option>
           <option value="jamaah">Jamaah</option>
           <option value="paket">Paket</option>
+          <option value="pengumuman">Pengumuman</option>
+          <option value="manasik">Manasik</option>
         </select>
       </div>
 

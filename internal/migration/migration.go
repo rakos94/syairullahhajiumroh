@@ -146,6 +146,35 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return err
 			},
 		},
+		{
+			Name: "007_create_pengumuman_indexes",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("pengumuman")
+				_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys: bson.D{
+						{Key: "dipublikasikan", Value: 1},
+						{Key: "disematkan", Value: -1},
+						{Key: "created_at", Value: -1},
+					},
+				})
+				return err
+			},
+		},
+		{
+			Name: "008_create_manasik_indexes",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				if _, err := db.Collection("sesi_manasik").Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys: bson.D{{Key: "paket_id", Value: 1}, {Key: "tanggal", Value: 1}},
+				}); err != nil {
+					return err
+				}
+				_, err := db.Collection("kehadiran_manasik").Indexes().CreateOne(ctx, mongo.IndexModel{
+					Keys:    bson.D{{Key: "sesi_id", Value: 1}, {Key: "jamaah_id", Value: 1}},
+					Options: options.Index().SetUnique(true),
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {

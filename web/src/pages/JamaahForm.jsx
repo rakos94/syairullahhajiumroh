@@ -21,6 +21,10 @@ const emptyForm = {
   koper_sudah_diterima: false,
   gedung_manasik: '',
   kamar_manasik: '',
+  rombongan: '',
+  regu: '',
+  ketua_regu: false,
+  ketua_rombongan: false,
   keterangan: '',
 };
 
@@ -36,6 +40,18 @@ function dateInputToIso(val) {
   const date = new Date(`${val}T00:00:00Z`);
   if (isNaN(date.getTime())) return null;
   return date.toISOString();
+}
+
+function Section({ title, description, children }) {
+  return (
+    <section className="bg-white shadow rounded-lg p-6">
+      <div className="mb-4 border-b border-gray-100 pb-3">
+        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function JamaahForm() {
@@ -76,6 +92,10 @@ export default function JamaahForm() {
             koper_sudah_diterima: data.koper_sudah_diterima || false,
             gedung_manasik: data.gedung_manasik || '',
             kamar_manasik: data.kamar_manasik || '',
+            rombongan: data.rombongan || '',
+            regu: data.regu || '',
+            ketua_regu: data.ketua_regu || false,
+            ketua_rombongan: data.ketua_rombongan || false,
             keterangan: data.keterangan || '',
           });
         })
@@ -151,200 +171,215 @@ export default function JamaahForm() {
       <form
         onSubmit={handleSubmit}
         onKeyDown={(e) => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); }}
-        className="bg-white shadow rounded-lg p-6"
+        className="space-y-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>
-              Nama <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="nama"
-              value={form.nama}
-              onChange={handleChange}
-              required
-              className={inputClass}
-            />
-          </div>
+        <Section title="Data Pribadi" description="Sesuai KTP dan paspor.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>
+                Nama <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="nama"
+                value={form.nama}
+                onChange={handleChange}
+                required
+                className={inputClass}
+              />
+            </div>
 
-          <div>
-            <label className={labelClass}>
-              NIK <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="nik"
-              value={form.nik}
-              onChange={handleChange}
-              required
-              className={inputClass}
-            />
-          </div>
+            <div>
+              <label className={labelClass}>
+                NIK <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="nik"
+                value={form.nik}
+                onChange={handleChange}
+                required
+                className={inputClass}
+              />
+            </div>
 
-          <div>
-            <label className={labelClass}>Nomor Paspor</label>
-            <input
-              name="nomor_paspor"
-              value={form.nomor_paspor}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>No HP</label>
-            <input
-              name="no_hp"
-              value={form.no_hp}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={labelClass}>Alamat</label>
-            <textarea
-              name="alamat"
-              value={form.alamat}
-              onChange={handleChange}
-              rows={2}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Tempat Lahir</label>
-            <input
-              name="tempat_lahir"
-              value={form.tempat_lahir}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Tanggal Lahir</label>
-            <input
-              type="date"
-              name="tanggal_lahir"
-              value={form.tanggal_lahir}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>
-              Jenis Kelamin <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="jenis_kelamin"
-              value={form.jenis_kelamin}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              <option value="laki-laki">Laki-laki</option>
-              <option value="perempuan">Perempuan</option>
-            </select>
-          </div>
-
-          <div>
-            <label className={labelClass}>
-              Paket <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="paket_id"
-              value={form.paket_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, paket_id: e.target.value, tanggal_keberangkatan: null }))}
-              required
-              className={inputClass}
-            >
-              <option value="">-- Pilih Paket --</option>
-              {paketOptions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={labelClass}>Tanggal Keberangkatan</label>
-            {paketDepartures.length > 0 ? (
+            <div>
+              <label className={labelClass}>
+                Jenis Kelamin <span className="text-red-500">*</span>
+              </label>
               <select
-                value={form.tanggal_keberangkatan ? form.tanggal_keberangkatan.nama : ''}
-                onChange={(e) => {
-                  const tk = paketDepartures.find((d) => d.nama === e.target.value);
-                  setForm((prev) => ({
-                    ...prev,
-                    tanggal_keberangkatan: tk ? { nama: tk.nama, tanggal: tk.tanggal } : null,
-                  }));
-                }}
+                name="jenis_kelamin"
+                value={form.jenis_kelamin}
+                onChange={handleChange}
                 className={inputClass}
               >
-                <option value="">-- Pilih Keberangkatan --</option>
-                {paketDepartures.map((tk, i) => (
-                  <option key={i} value={tk.nama}>
-                    {tk.nama}{tk.tanggal ? ` - ${formatDmyFromIso(tk.tanggal)}` : ''}
+                <option value="laki-laki">Laki-laki</option>
+                <option value="perempuan">Perempuan</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>Nomor Paspor</label>
+              <input
+                name="nomor_paspor"
+                value={form.nomor_paspor}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Tempat Lahir</label>
+              <input
+                name="tempat_lahir"
+                value={form.tempat_lahir}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Tanggal Lahir</label>
+              <input
+                type="date"
+                name="tanggal_lahir"
+                value={form.tanggal_lahir}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>No HP</label>
+              <input
+                name="no_hp"
+                value={form.no_hp}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={labelClass}>Alamat</label>
+              <textarea
+                name="alamat"
+                value={form.alamat}
+                onChange={handleChange}
+                rows={2}
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Paket & Keberangkatan">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>
+                Paket <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="paket_id"
+                value={form.paket_id}
+                onChange={(e) => setForm((prev) => ({ ...prev, paket_id: e.target.value, tanggal_keberangkatan: null }))}
+                required
+                className={inputClass}
+              >
+                <option value="">-- Pilih Paket --</option>
+                {paketOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
                   </option>
                 ))}
               </select>
-            ) : (
+            </div>
+
+            <div>
+              <label className={labelClass}>Tanggal Keberangkatan</label>
+              {paketDepartures.length > 0 ? (
+                <select
+                  value={form.tanggal_keberangkatan ? form.tanggal_keberangkatan.nama : ''}
+                  onChange={(e) => {
+                    const tk = paketDepartures.find((d) => d.nama === e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      tanggal_keberangkatan: tk ? { nama: tk.nama, tanggal: tk.tanggal } : null,
+                    }));
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">-- Pilih Keberangkatan --</option>
+                  {paketDepartures.map((tk, i) => (
+                    <option key={i} value={tk.nama}>
+                      {tk.nama}{tk.tanggal ? ` - ${formatDmyFromIso(tk.tanggal)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="date"
+                  name="tanggal_keberangkatan_manual"
+                  value={form.tanggal_keberangkatan ? isoToDateInput(form.tanggal_keberangkatan.tanggal) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const iso = dateInputToIso(val);
+                    setForm((prev) => ({
+                      ...prev,
+                      tanggal_keberangkatan: val ? { tanggal: iso || val } : null,
+                    }));
+                  }}
+                  className={inputClass}
+                />
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Pembayaran">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>
+                Status Pembayaran <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="status_pembayaran"
+                value={form.status_pembayaran}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="belum_bayar">Belum Bayar</option>
+                <option value="dp">DP</option>
+                <option value="lunas">Lunas</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>No Rekening Haji</label>
               <input
-                type="date"
-                name="tanggal_keberangkatan_manual"
-                value={form.tanggal_keberangkatan ? isoToDateInput(form.tanggal_keberangkatan.tanggal) : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const iso = dateInputToIso(val);
-                  setForm((prev) => ({
-                    ...prev,
-                    tanggal_keberangkatan: val ? { tanggal: iso || val } : null,
-                  }));
-                }}
+                name="no_rekening_haji"
+                value={form.no_rekening_haji}
+                onChange={handleChange}
                 className={inputClass}
               />
-            )}
-          </div>
+            </div>
 
-          <div>
-            <label className={labelClass}>
-              Status Pembayaran <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="status_pembayaran"
-              value={form.status_pembayaran}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              <option value="belum_bayar">Belum Bayar</option>
-              <option value="dp">DP</option>
-              <option value="lunas">Lunas</option>
-            </select>
+            <div>
+              <label className={labelClass}>Tipe Bank</label>
+              <input
+                name="tipe_bank"
+                value={form.tipe_bank}
+                onChange={handleChange}
+                placeholder="BRI, BNI, BSI, dll"
+                className={inputClass}
+              />
+            </div>
           </div>
+        </Section>
 
-          <div>
-            <label className={labelClass}>No Rekening Haji</label>
-            <input
-              name="no_rekening_haji"
-              value={form.no_rekening_haji}
-              onChange={handleChange}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Tipe Bank</label>
-            <input
-              name="tipe_bank"
-              value={form.tipe_bank}
-              onChange={handleChange}
-              placeholder="BRI, BNI, BSI, dll"
-              className={inputClass}
-            />
-          </div>
-
-          {selectedPaket?.tipe === 'haji' && (
-            <>
+        {selectedPaket?.tipe === 'haji' && (
+          <Section
+            title="Manasik"
+            description="Penempatan di asrama haji serta rombongan & regu. Jamaah dapat melihatnya sendiri di halaman Cek Kamar, termasuk nama dan No HP ketua regu/rombongan."
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Gedung Manasik</label>
                 <input
@@ -366,21 +401,57 @@ export default function JamaahForm() {
                   className={inputClass}
                 />
               </div>
-            </>
-          )}
 
-          <div className="md:col-span-2">
-            <label className={labelClass}>Keterangan</label>
-            <textarea
-              name="keterangan"
-              value={form.keterangan}
-              onChange={handleChange}
-              rows={2}
-              className={inputClass}
-            />
-          </div>
+              <div>
+                <label className={labelClass}>Rombongan</label>
+                <input
+                  name="rombongan"
+                  value={form.rombongan}
+                  onChange={handleChange}
+                  placeholder="Contoh: 1"
+                  className={inputClass}
+                />
+              </div>
 
-          <div className="md:col-span-2 flex flex-wrap gap-6 pt-2">
+              <div>
+                <label className={labelClass}>Regu</label>
+                <input
+                  name="regu"
+                  value={form.regu}
+                  onChange={handleChange}
+                  placeholder="Contoh: 2"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="md:col-span-2 flex flex-wrap gap-6">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="ketua_regu"
+                    checked={form.ketua_regu}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  Ketua Regu
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="ketua_rombongan"
+                    checked={form.ketua_rombongan}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  Ketua Rombongan
+                </label>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        <Section title="Kelengkapan">
+          <div className="flex flex-wrap gap-6">
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
@@ -412,9 +483,22 @@ export default function JamaahForm() {
               Koper Sudah Diterima
             </label>
           </div>
-        </div>
+        </Section>
 
-        <div className="mt-6 flex gap-3">
+        <Section title="Catatan">
+          <div>
+            <label className={labelClass}>Keterangan</label>
+            <textarea
+              name="keterangan"
+              value={form.keterangan}
+              onChange={handleChange}
+              rows={2}
+              className={inputClass}
+            />
+          </div>
+        </Section>
+
+        <div className="flex gap-3">
           <button
             type="submit"
             disabled={loading}

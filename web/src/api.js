@@ -241,14 +241,134 @@ export async function cekKamarManasik(nik, tanggal_lahir) {
   return data;
 }
 
-// Bulk set gedung/kamar manasik. Omit a field (undefined) to leave it unchanged; '' clears it.
-export async function bulkSetManasik(ids, { gedung_manasik, kamar_manasik }) {
+// Bulk set manasik placement. Omit a field (undefined) to leave it unchanged; '' clears it.
+export async function bulkSetManasik(ids, { gedung_manasik, kamar_manasik, rombongan, regu }) {
   const res = await authFetch(`${BASE}/jamaah/bulk-manasik`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, gedung_manasik, kamar_manasik }),
+    body: JSON.stringify({ ids, gedung_manasik, kamar_manasik, rombongan, regu }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Gagal mengatur kamar manasik');
   return data;
+}
+
+// Pengumuman (announcements)
+export async function fetchPublicPengumuman() {
+  const res = await fetch(`${BASE}/portal/pengumuman`);
+  if (!res.ok) throw new Error('Gagal memuat pengumuman');
+  return res.json();
+}
+
+export async function fetchPengumumanList() {
+  const res = await authFetch(`${BASE}/pengumuman`);
+  if (!res.ok) throw new Error('Gagal memuat pengumuman');
+  return res.json();
+}
+
+async function savePengumuman(url, method, data) {
+  const res = await authFetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      judul: data.judul,
+      isi: data.isi,
+      dipublikasikan: data.dipublikasikan,
+      disematkan: data.disematkan,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Gagal menyimpan pengumuman');
+  return body;
+}
+
+export function createPengumuman(data) {
+  return savePengumuman(`${BASE}/pengumuman`, 'POST', data);
+}
+
+export function updatePengumuman(id, data) {
+  return savePengumuman(`${BASE}/pengumuman/${id}`, 'PUT', data);
+}
+
+export async function deletePengumuman(id) {
+  const res = await authFetch(`${BASE}/pengumuman/${id}`, { method: 'DELETE' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Gagal menghapus pengumuman');
+  return body;
+}
+
+// Manasik (rooming list, import/export, attendance)
+async function jsonOrThrow(res, fallback) {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || fallback);
+  return body;
+}
+
+export async function fetchManasikJamaah(paketId) {
+  const res = await authFetch(`${BASE}/manasik/jamaah?paket_id=${paketId}`);
+  return jsonOrThrow(res, 'Gagal memuat daftar kamar');
+}
+
+export async function downloadManasikExcel(paketId) {
+  const res = await authFetch(`${BASE}/manasik/export?paket_id=${paketId}`);
+  if (!res.ok) await jsonOrThrow(res, 'Gagal mengunduh excel');
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : 'daftar-kamar-manasik.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function importManasik(paketId, file, dryRun) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await authFetch(`${BASE}/manasik/import?paket_id=${paketId}&dry_run=${dryRun}`, {
+    method: 'POST',
+    body: formData,
+  });
+  return jsonOrThrow(res, 'Gagal import file');
+}
+
+export async function fetchSesiManasik(paketId) {
+  const res = await authFetch(`${BASE}/manasik/sesi?paket_id=${paketId}`);
+  return jsonOrThrow(res, 'Gagal memuat sesi manasik');
+}
+
+export async function createSesiManasik(data) {
+  const res = await authFetch(`${BASE}/manasik/sesi`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return jsonOrThrow(res, 'Gagal membuat sesi');
+}
+
+export async function deleteSesiManasik(id) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${id}`, { method: 'DELETE' });
+  return jsonOrThrow(res, 'Gagal menghapus sesi');
+}
+
+export async function fetchSesiDetail(id) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${id}`);
+  return jsonOrThrow(res, 'Gagal memuat sesi');
+}
+
+export async function markHadir(sesiId, payload) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${sesiId}/hadir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow(res, 'Gagal mencatat kehadiran');
+}
+
+export async function unmarkHadir(sesiId, jamaahId) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${sesiId}/hadir/${jamaahId}`, { method: 'DELETE' });
+  return jsonOrThrow(res, 'Gagal membatalkan kehadiran');
 }

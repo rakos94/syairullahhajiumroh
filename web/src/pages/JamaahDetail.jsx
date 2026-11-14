@@ -101,6 +101,8 @@ export default function JamaahDetail() {
       ? [
           ['Gedung Manasik', jamaah.gedung_manasik || '-'],
           ['Kamar Manasik', jamaah.kamar_manasik || '-'],
+          ['Rombongan / Regu', [jamaah.rombongan && `Rombongan ${jamaah.rombongan}`, jamaah.regu && `Regu ${jamaah.regu}`].filter(Boolean).join(' · ') || '-'],
+          ['Peran', [jamaah.ketua_rombongan && 'Ketua Rombongan', jamaah.ketua_regu && 'Ketua Regu'].filter(Boolean).join(', ') || '-'],
         ]
       : []),
     ['Keterangan', jamaah.keterangan || '-'],

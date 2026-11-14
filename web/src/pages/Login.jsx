@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -69,9 +69,8 @@ export default function Login() {
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          Jamaah?{' '}
-          <Link to="/cek-kamar" className="font-medium text-emerald-700 hover:underline">
-            Cek kamar manasik Anda
+          <Link to="/" className="font-medium text-emerald-700 hover:underline">
+            ← Kembali ke beranda
           </Link>
         </p>
       </div>

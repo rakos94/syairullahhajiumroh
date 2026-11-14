@@ -115,6 +115,10 @@ func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
 	diffField(&changes, "Koper Sudah Diterima", formatBool(old.KoperSudahDiterima), formatBool(new.KoperSudahDiterima))
 	diffField(&changes, "Gedung Manasik", old.GedungManasik, new.GedungManasik)
 	diffField(&changes, "Kamar Manasik", old.KamarManasik, new.KamarManasik)
+	diffField(&changes, "Rombongan", old.Rombongan, new.Rombongan)
+	diffField(&changes, "Regu", old.Regu, new.Regu)
+	diffField(&changes, "Ketua Regu", formatBool(old.KetuaRegu), formatBool(new.KetuaRegu))
+	diffField(&changes, "Ketua Rombongan", formatBool(old.KetuaRombongan), formatBool(new.KetuaRombongan))
 	diffField(&changes, "Keterangan", old.Keterangan, new.Keterangan)
 
 	return changes

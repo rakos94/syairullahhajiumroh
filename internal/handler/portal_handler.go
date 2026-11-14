@@ -17,10 +17,25 @@ import (
 type PortalHandler struct {
 	repo      *repository.JamaahRepository
 	paketRepo *repository.PaketRepository
+	qrSecret  string
 }
 
-func NewPortalHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository) *PortalHandler {
-	return &PortalHandler{repo: repo, paketRepo: paketRepo}
+func NewPortalHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, qrSecret string) *PortalHandler {
+	return &PortalHandler{repo: repo, paketRepo: paketRepo, qrSecret: qrSecret}
+}
+
+// KontakKetua is the public contact of a group leader.
+type KontakKetua struct {
+	Nama string `json:"nama"`
+	NoHP string `json:"no_hp"`
+}
+
+func toKontak(list []model.Jamaah) []KontakKetua {
+	out := make([]KontakKetua, 0, len(list))
+	for _, j := range list {
+		out = append(out, KontakKetua{Nama: j.Nama, NoHP: j.NoHP})
+	}
+	return out
 }
 
 type cekKamarRequest struct {
@@ -36,6 +51,12 @@ type CekKamarResponse struct {
 	TanggalKeberangkatan *model.KeberangkatanJamaah `json:"tanggal_keberangkatan,omitempty"`
 	GedungManasik        string                     `json:"gedung_manasik"`
 	KamarManasik         string                     `json:"kamar_manasik"`
+	Rombongan            string                     `json:"rombongan"`
+	Regu                 string                     `json:"regu"`
+	KetuaRegu            []KontakKetua              `json:"ketua_regu"`
+	KetuaRombongan       []KontakKetua              `json:"ketua_rombongan"`
+	// QRToken is shown as a QR code for manasik attendance (haji only).
+	QRToken string `json:"qr_token,omitempty"`
 }
 
 // CekKamar godoc
@@ -85,10 +106,22 @@ func (h *PortalHandler) CekKamar(c *gin.Context) {
 		TanggalKeberangkatan: jamaah.TanggalKeberangkatan,
 		GedungManasik:        jamaah.GedungManasik,
 		KamarManasik:         jamaah.KamarManasik,
+		Rombongan:            jamaah.Rombongan,
+		Regu:                 jamaah.Regu,
+		KetuaRegu:            []KontakKetua{},
+		KetuaRombongan:       []KontakKetua{},
 	}
 	if !jamaah.PaketID.IsZero() {
 		if paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err == nil {
 			resp.Paket = paket.Label
+			if paket.Tipe == "haji" {
+				resp.QRToken = manasikToken(h.qrSecret, jamaah.ID)
+				regu, rombongan, err := h.repo.FindLeaders(c.Request.Context(), jamaah.PaketID, jamaah.Rombongan, jamaah.Regu)
+				if err == nil {
+					resp.KetuaRegu = toKontak(regu)
+					resp.KetuaRombongan = toKontak(rombongan)
+				}
+			}
 		}
 	}
 

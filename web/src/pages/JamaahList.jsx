@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchJamaah, deleteJamaah, fetchPaketList, bulkSetManasik } from '../api';
 import StatusBadge from '../components/StatusBadge';
 
 const PAGE_SIZE = 10;
 
 export default function JamaahList() {
+  // Filters can be preset via URL, e.g. /jamaah?paket_id=...&kelengkapan=manasik_belum
+  const [searchParams] = useSearchParams();
   const [jamaahList, setJamaahList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterPaket, setFilterPaket] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterKelengkapan, setFilterKelengkapan] = useState('');
+  const [filterPaket, setFilterPaket] = useState(() => searchParams.get('paket_id') || '');
+  const [filterStatus, setFilterStatus] = useState(() => searchParams.get('status_pembayaran') || '');
+  const [filterKelengkapan, setFilterKelengkapan] = useState(() => searchParams.get('kelengkapan') || '');
   const [paketOptions, setPaketOptions] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -24,6 +26,8 @@ export default function JamaahList() {
   const [selected, setSelected] = useState({});
   const [bulkGedung, setBulkGedung] = useState('');
   const [bulkKamar, setBulkKamar] = useState('');
+  const [bulkRombongan, setBulkRombongan] = useState('');
+  const [bulkRegu, setBulkRegu] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkMsg, setBulkMsg] = useState('');
   const selectedIds = Object.keys(selected);
@@ -98,16 +102,18 @@ export default function JamaahList() {
 
   const applyBulk = async (clear = false) => {
     const payload = clear
-      ? { gedung_manasik: '', kamar_manasik: '' }
+      ? { gedung_manasik: '', kamar_manasik: '', rombongan: '', regu: '' }
       : {
           gedung_manasik: bulkGedung.trim() || undefined,
           kamar_manasik: bulkKamar.trim() || undefined,
+          rombongan: bulkRombongan.trim() || undefined,
+          regu: bulkRegu.trim() || undefined,
         };
-    if (!clear && !payload.gedung_manasik && !payload.kamar_manasik) {
-      setBulkMsg('Isi gedung atau kamar terlebih dahulu');
+    if (!clear && Object.values(payload).every((v) => v === undefined)) {
+      setBulkMsg('Isi minimal satu: gedung, kamar, rombongan, atau regu');
       return;
     }
-    if (clear && !confirm(`Hapus penempatan gedung & kamar untuk ${selectedIds.length} jamaah?`)) return;
+    if (clear && !confirm(`Hapus gedung, kamar, rombongan & regu untuk ${selectedIds.length} jamaah?`)) return;
 
     setBulkSaving(true);
     setBulkMsg('');
@@ -116,6 +122,8 @@ export default function JamaahList() {
       setSelected({});
       setBulkGedung('');
       setBulkKamar('');
+      setBulkRombongan('');
+      setBulkRegu('');
       setBulkMsg(res.message);
       loadData();
     } catch (err) {
@@ -126,7 +134,7 @@ export default function JamaahList() {
   };
 
   const bulkInputClass =
-    'px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-36';
+    'px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-28';
 
   return (
     <div>
@@ -185,7 +193,7 @@ export default function JamaahList() {
 
       {selectedIds.length > 0 && (
         <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
             <p className="text-sm font-medium text-emerald-900 whitespace-nowrap">
               {selectedIds.length} jamaah dipilih
             </p>
@@ -203,13 +211,27 @@ export default function JamaahList() {
               aria-label="Kamar manasik"
               className={bulkInputClass}
             />
+            <input
+              value={bulkRombongan}
+              onChange={(e) => setBulkRombongan(e.target.value)}
+              placeholder="Rombongan"
+              aria-label="Rombongan"
+              className={bulkInputClass}
+            />
+            <input
+              value={bulkRegu}
+              onChange={(e) => setBulkRegu(e.target.value)}
+              placeholder="Regu"
+              aria-label="Regu"
+              className={bulkInputClass}
+            />
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => applyBulk(false)}
                 disabled={bulkSaving}
                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50"
               >
-                {bulkSaving ? 'Menyimpan...' : 'Atur Kamar'}
+                {bulkSaving ? 'Menyimpan...' : 'Terapkan'}
               </button>
               <button
                 onClick={() => applyBulk(true)}

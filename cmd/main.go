@@ -82,6 +82,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(adminRepo, cfg.JWTSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	statisticsHandler := handler.NewStatisticsHandler(jamaahRepo, paketRepo)
+	pengumumanHandler := handler.NewPengumumanHandler(repository.NewPengumumanRepository(db), auditLogRepo)
+	manasikHandler := handler.NewManasikHandler(repository.NewManasikRepository(db), jamaahRepo, paketRepo, auditLogRepo, cfg.JWTSecret)
 
 	// Setup Gin router
 	r := gin.Default()
@@ -94,7 +96,8 @@ func main() {
 
 	// Public self-service lookup for jamaah (rate limited: 20 attempts per 5 minutes per IP)
 	portalLimiter := middleware.NewRateLimiter(20, 5*time.Minute)
-	handler.NewPortalHandler(jamaahRepo, paketRepo).RegisterRoutes(api, portalLimiter.Middleware())
+	handler.NewPortalHandler(jamaahRepo, paketRepo, cfg.JWTSecret).RegisterRoutes(api, portalLimiter.Middleware())
+	pengumumanHandler.RegisterPublicRoutes(api)
 
 	// Protected routes
 	protected := api.Group("")
@@ -104,6 +107,8 @@ func main() {
 	paketHandler.RegisterRoutes(protected)
 	auditLogHandler.RegisterRoutes(protected)
 	protected.GET("/statistics", statisticsHandler.GetStatistics)
+	pengumumanHandler.RegisterRoutes(protected)
+	manasikHandler.RegisterRoutes(protected)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
