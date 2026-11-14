@@ -108,16 +108,34 @@ export async function deleteJamaah(id) {
   return res.json();
 }
 
+const extByType = { 'image/jpeg': '.jpg', 'image/png': '.png', 'application/pdf': '.pdf' };
+
+// The server checks the file extension, so the upload must keep a real filename.
+function withFilename(blob, originalName) {
+  let name = originalName || 'dokumen';
+  const ext = extByType[blob.type];
+  // If compression changed the format, make the extension match the content.
+  if (ext && !name.toLowerCase().endsWith(ext) && !(ext === '.jpg' && /\.jpe?g$/i.test(name))) {
+    name = name.replace(/\.[^.]*$/, '') + ext;
+  }
+  return new File([blob], name, { type: blob.type, lastModified: Date.now() });
+}
+
 export async function uploadDocument(id, docType, file, nominal) {
+  const originalName = file.name;
   if (file.type.startsWith('image/')) {
-    file = await imageCompression(file, {
+    // browser-image-compression returns a plain Blob (not a File) when it
+    // actually compresses; FormData would then send it as "blob" with no
+    // extension and the server rejects it. Re-wrap it with the original name.
+    const compressed = await imageCompression(file, {
       maxSizeMB: 1,
       maxWidthOrHeight: 1920,
       useWebWorker: true,
     });
+    file = withFilename(compressed, originalName);
   }
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', file, file.name);
   if (nominal !== undefined) formData.append('nominal', nominal);
   const res = await authFetch(`${BASE}/jamaah/${id}/upload/${docType}`, {
     method: 'POST',
