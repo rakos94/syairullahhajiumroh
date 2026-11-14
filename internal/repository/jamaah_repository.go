@@ -66,6 +66,19 @@ func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.Objec
 		filter["batik_kbih_sudah_diterima"] = bson.M{"$ne": true}
 	case "koper_belum":
 		filter["koper_sudah_diterima"] = bson.M{"$ne": true}
+	case "manasik_belum":
+		// Only haji jamaah do manasik; list those still missing gedung or kamar.
+		hajiIDs, err := r.collection.Database().Collection("paket").Distinct(ctx, "_id", bson.M{"tipe": "haji"})
+		if err != nil {
+			return nil, 0, err
+		}
+		filter["$and"] = bson.A{
+			bson.M{"paket_id": bson.M{"$in": hajiIDs}},
+			bson.M{"$or": bson.A{
+				bson.M{"gedung_manasik": bson.M{"$in": bson.A{"", nil}}},
+				bson.M{"kamar_manasik": bson.M{"$in": bson.A{"", nil}}},
+			}},
+		}
 	}
 	if search != "" {
 		regex := bson.M{"$regex": search, "$options": "i"}
@@ -105,6 +118,166 @@ func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) 
 		return nil, err
 	}
 	return &jamaah, nil
+}
+
+func (r *JamaahRepository) FindByNIK(ctx context.Context, nik string) (*model.Jamaah, error) {
+	var jamaah model.Jamaah
+	err := r.collection.FindOne(ctx, bson.M{"nik": nik, "deleted_at": nil}).Decode(&jamaah)
+	if err != nil {
+		return nil, err
+	}
+	return &jamaah, nil
+}
+
+func (r *JamaahRepository) FindByIDs(ctx context.Context, ids []primitive.ObjectID) ([]model.Jamaah, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []model.Jamaah
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// ManasikUpdate holds manasik placement fields. nil = leave unchanged, "" = clear.
+type ManasikUpdate struct {
+	GedungManasik *string
+	KamarManasik  *string
+	Rombongan     *string
+	Regu          *string
+}
+
+func (u ManasikUpdate) IsEmpty() bool {
+	return u.GedungManasik == nil && u.KamarManasik == nil && u.Rombongan == nil && u.Regu == nil
+}
+
+func (u ManasikUpdate) setDoc() bson.M {
+	set := bson.M{"updated_at": time.Now()}
+	if u.GedungManasik != nil {
+		set["gedung_manasik"] = *u.GedungManasik
+	}
+	if u.KamarManasik != nil {
+		set["kamar_manasik"] = *u.KamarManasik
+	}
+	if u.Rombongan != nil {
+		set["rombongan"] = *u.Rombongan
+	}
+	if u.Regu != nil {
+		set["regu"] = *u.Regu
+	}
+	return set
+}
+
+// SetManasik applies the same manasik placement to many jamaah at once.
+func (r *JamaahRepository) SetManasik(ctx context.Context, ids []primitive.ObjectID, u ManasikUpdate) (int64, error) {
+	res, err := r.collection.UpdateMany(
+		ctx,
+		bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil},
+		bson.M{"$set": u.setDoc()},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
+}
+
+// SetManasikOne applies a manasik placement to a single jamaah (used by import).
+func (r *JamaahRepository) SetManasikOne(ctx context.Context, id primitive.ObjectID, u ManasikUpdate) error {
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id, "deleted_at": nil}, bson.M{"$set": u.setDoc()})
+	return err
+}
+
+// FindByPaket returns all non-deleted jamaah of a paket, sorted by name.
+func (r *JamaahRepository) FindByPaket(ctx context.Context, paketID primitive.ObjectID) ([]model.Jamaah, error) {
+	opts := options.Find().SetSort(bson.D{{Key: "nama", Value: 1}})
+	cursor, err := r.collection.Find(ctx, bson.M{"paket_id": paketID, "deleted_at": nil}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	results := []model.Jamaah{}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// CountUsingPilihanHarga counts jamaah of a paket whose chosen price option
+// is one of names.
+func (r *JamaahRepository) CountUsingPilihanHarga(ctx context.Context, paketID primitive.ObjectID, names []string) (map[string]int64, error) {
+	out := map[string]int64{}
+	if len(names) == 0 {
+		return out, nil
+	}
+	cursor, err := r.collection.Aggregate(ctx, mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"paket_id": paketID, "deleted_at": nil, "pilihan_harga": bson.M{"$in": names}}}},
+		{{Key: "$group", Value: bson.M{"_id": "$pilihan_harga", "n": bson.M{"$sum": 1}}}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		ID string `bson:"_id"`
+		N  int64  `bson:"n"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.ID] = r.N
+	}
+	return out, nil
+}
+
+// FindActive returns all non-deleted jamaah, optionally of one paket, sorted by name.
+func (r *JamaahRepository) FindActive(ctx context.Context, paketID *primitive.ObjectID) ([]model.Jamaah, error) {
+	filter := bson.M{"deleted_at": nil}
+	if paketID != nil {
+		filter["paket_id"] = *paketID
+	}
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "nama", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	results := []model.Jamaah{}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// FindLeaders returns the ketua regu of (paket, rombongan, regu) and the
+// ketua rombongan of (paket, rombongan). Empty rombongan/regu yields nothing.
+func (r *JamaahRepository) FindLeaders(ctx context.Context, paketID primitive.ObjectID, rombongan, regu string) (ketuaRegu, ketuaRombongan []model.Jamaah, err error) {
+	find := func(filter bson.M) ([]model.Jamaah, error) {
+		filter["paket_id"] = paketID
+		filter["deleted_at"] = nil
+		cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "nama", Value: 1}}))
+		if err != nil {
+			return nil, err
+		}
+		defer cursor.Close(ctx)
+		out := []model.Jamaah{}
+		err = cursor.All(ctx, &out)
+		return out, err
+	}
+	if rombongan != "" && regu != "" {
+		if ketuaRegu, err = find(bson.M{"rombongan": rombongan, "regu": regu, "ketua_regu": true}); err != nil {
+			return nil, nil, err
+		}
+	}
+	if rombongan != "" {
+		if ketuaRombongan, err = find(bson.M{"rombongan": rombongan, "ketua_rombongan": true}); err != nil {
+			return nil, nil, err
+		}
+	}
+	return ketuaRegu, ketuaRombongan, nil
 }
 
 func (r *JamaahRepository) Update(ctx context.Context, id primitive.ObjectID, jamaah *model.Jamaah) error {

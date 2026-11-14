@@ -20,6 +20,8 @@ const actionColors = {
 const entityTypeLabels = {
   jamaah: 'Jamaah',
   paket: 'Paket',
+  pengumuman: 'Pengumuman',
+  manasik: 'Manasik',
 };
 
 function formatDate(dateStr) {
@@ -49,18 +51,27 @@ export default function AuditLog() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [entityType, setEntityType] = useState('');
-  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  // Loading is derived: true until the response for the current filter/page arrives.
+  const requestKey = `${entityType}|${page}`;
+  const [loadedKey, setLoadedKey] = useState(null);
+  const loading = loadedKey !== requestKey;
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     fetchAuditLogs({ entity_type: entityType, page, limit: 20 })
       .then((data) => {
+        if (cancelled) return;
         setLogs(data.data);
         setTotalPages(data.total_pages);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoadedKey(`${entityType}|${page}`);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [page, entityType]);
 
   const handleFilterChange = (e) => {
@@ -80,6 +91,8 @@ export default function AuditLog() {
           <option value="">Semua</option>
           <option value="jamaah">Jamaah</option>
           <option value="paket">Paket</option>
+          <option value="pengumuman">Pengumuman</option>
+          <option value="manasik">Manasik</option>
         </select>
       </div>
 

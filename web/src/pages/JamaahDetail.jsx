@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
+import { formatRupiah } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import CopyButton from '../components/CopyButton';
+import NominalDialog from '../components/NominalDialog';
 
 const singleDocTypes = [
   { key: 'ktp', label: 'KTP', field: 'foto_ktp' },
@@ -25,6 +28,17 @@ function formatDate(dateStr) {
   return `${day}/${month}/${year}`;
 }
 
+// Value with a copy button next to it; "-" when empty.
+function withCopy(value, label) {
+  if (!value) return '-';
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="tabular-nums">{value}</span>
+      <CopyButton text={value} label={label} />
+    </span>
+  );
+}
+
 export default function JamaahDetail() {
   const { id } = useParams();
   const [jamaah, setJamaah] = useState(null);
@@ -32,11 +46,15 @@ export default function JamaahDetail() {
   const [error, setError] = useState('');
   const [uploadMsg, setUploadMsg] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [nominalUpload, setNominalUpload] = useState(null); // {docKey, label, file}
   const [cacheKey, setCacheKey] = useState(Date.now());
 
-  const loadData = async () => {
+  const loadedAtRef = useRef(0);
+
+  const loadData = useCallback(async () => {
     try {
       const data = await fetchJamaahById(id);
+      loadedAtRef.current = Date.now();
       setJamaah(data);
       setError('');
     } catch (err) {
@@ -44,11 +62,36 @@ export default function JamaahDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [loadData]);
+
+  // Document links carry a signature valid for 2 hours (dokumen_akses).
+  // Refresh it quietly before it expires so a page left open keeps working.
+  // Timed from our own last load, not the server's expiry, so a wrong
+  // computer clock can't cause refresh loops or missed refreshes.
+  const aksesSig = jamaah?.dokumen_akses?.sig;
+  useEffect(() => {
+    if (!aksesSig) return undefined;
+    const REFRESH_AFTER_MS = 90 * 60 * 1000;
+    const timer = setTimeout(loadData, REFRESH_AFTER_MS);
+    // Timers can be delayed while a laptop sleeps or the tab is in the
+    // background; check again when the admin comes back to the page.
+    const onReturn = () => {
+      if (document.visibilityState === 'visible' && Date.now() - loadedAtRef.current > REFRESH_AFTER_MS) {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+    };
+  }, [aksesSig, loadData]);
 
   const handleUpload = async (docType, file, nominal) => {
     try {
@@ -82,10 +125,10 @@ export default function JamaahDetail() {
 
   const infoRows = [
     ['Nama', jamaah.nama],
-    ['NIK', jamaah.nik],
-    ['Nomor Paspor', jamaah.nomor_paspor || '-'],
+    ['NIK', withCopy(jamaah.nik, 'Salin NIK')],
+    ['Nomor Paspor', withCopy(jamaah.nomor_paspor, 'Salin nomor paspor')],
     ['Alamat', jamaah.alamat || '-'],
-    ['No HP', jamaah.no_hp || '-'],
+    ['No HP', withCopy(jamaah.no_hp, 'Salin No HP')],
     ['Tempat Lahir', jamaah.tempat_lahir || '-'],
     ['Tanggal Lahir', formatDate(jamaah.tanggal_lahir)],
     ['Jenis Kelamin', jamaah.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'],
@@ -95,8 +138,16 @@ export default function JamaahDetail() {
           ? `${jamaah.tanggal_keberangkatan.nama}${formatDate(jamaah.tanggal_keberangkatan.tanggal) !== '-' ? ` - ${formatDate(jamaah.tanggal_keberangkatan.tanggal)}` : ''}`
           : formatDate(jamaah.tanggal_keberangkatan.tanggal))
       : '-'],
-    ['No Rekening Haji', jamaah.no_rekening_haji || '-'],
+    ['No Rekening Haji', withCopy(jamaah.no_rekening_haji, 'Salin No Rekening Haji')],
     ['Tipe Bank', jamaah.tipe_bank || '-'],
+    ...(jamaah.paket?.tipe === 'haji'
+      ? [
+          ['Gedung Manasik', jamaah.gedung_manasik || '-'],
+          ['Kamar Manasik', jamaah.kamar_manasik || '-'],
+          ['Rombongan / Regu', [jamaah.rombongan && `Rombongan ${jamaah.rombongan}`, jamaah.regu && `Regu ${jamaah.regu}`].filter(Boolean).join(' · ') || '-'],
+          ['Peran', [jamaah.ketua_rombongan && 'Ketua Rombongan', jamaah.ketua_regu && 'Ketua Regu'].filter(Boolean).join(', ') || '-'],
+        ]
+      : []),
     ['Keterangan', jamaah.keterangan || '-'],
   ];
 
@@ -151,6 +202,58 @@ export default function JamaahDetail() {
         </div>
       </div>
 
+      {/* Tagihan */}
+      {jamaah.tagihan && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tagihan</h2>
+          {jamaah.tagihan.harga_diatur ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Harga</p>
+                <p className="text-lg font-semibold text-gray-900">{formatRupiah(jamaah.tagihan.harga)}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {jamaah.tagihan.pilihan_harga || 'Harga paket'}: {formatRupiah(jamaah.tagihan.harga_dasar)}
+                </p>
+                {jamaah.tagihan.potongan > 0 && (
+                  <p className="text-xs text-gray-500">
+                    Potongan −{formatRupiah(jamaah.tagihan.potongan)}
+                    {jamaah.keterangan_potongan ? ` (${jamaah.keterangan_potongan})` : ''}
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Sudah dibayar</p>
+                <p className="text-lg font-semibold text-gray-900">{formatRupiah(jamaah.tagihan.total_dibayar)}</p>
+              </div>
+              <div
+                className={`rounded-lg border p-4 ${
+                  jamaah.tagihan.sisa > 0 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                }`}
+              >
+                <p className="text-sm text-gray-600">{jamaah.tagihan.sisa < 0 ? 'Kelebihan bayar' : 'Sisa tagihan'}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {jamaah.tagihan.sisa > 0 ? formatRupiah(jamaah.tagihan.sisa) : jamaah.tagihan.sisa < 0 ? formatRupiah(-jamaah.tagihan.sisa) : 'Lunas'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600">
+              Sudah dibayar <b>{formatRupiah(jamaah.tagihan.total_dibayar)}</b>. Harga paket belum diatur, jadi sisa
+              tagihan belum bisa dihitung. Atur harga di menu{' '}
+              <Link to="/paket" className="text-emerald-700 hover:underline">Paket</Link>.
+            </p>
+          )}
+          {jamaah.tagihan.harga_diatur && jamaah.status_pembayaran === 'lunas' && jamaah.tagihan.sisa > 0 && (
+            <p className="mt-3 text-sm text-amber-700">
+              Status pembayaran Lunas, tetapi total bukti pembayaran masih kurang dari harga paket.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-gray-500">
+            Dihitung dari nominal bukti DP dan bukti pelunasan yang diunggah di bawah.
+          </p>
+        </div>
+      )}
+
       {/* Documents */}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Dokumen</h2>
@@ -166,7 +269,7 @@ export default function JamaahDetail() {
             const filePath = jamaah[doc.field];
             const hasFile = Boolean(filePath);
             const isImage = hasFile && /\.(jpg|jpeg|png)$/i.test(filePath);
-            const docUrl = getDocumentUrl(id, doc.key) + `?_t=${cacheKey}`;
+            const docUrl = getDocumentUrl(id, doc.key, jamaah.dokumen_akses, cacheKey);
             return (
               <div
                 key={doc.key}
@@ -222,7 +325,7 @@ export default function JamaahDetail() {
                   </label>
                   {hasFile && (
                     <a
-                      href={getDocumentDownloadUrl(id, doc.key)}
+                      href={getDocumentDownloadUrl(id, doc.key, jamaah.dokumen_akses)}
                       className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-md hover:bg-emerald-100"
                     >
                       Download
@@ -250,9 +353,7 @@ export default function JamaahDetail() {
                       if (e.target.files[0]) {
                         const file = e.target.files[0];
                         e.target.value = '';
-                        const nominal = prompt('Masukkan nominal pembayaran (Rp):');
-                        if (nominal === null) return;
-                        handleUpload(doc.key, file, Number(nominal.replace(/\D/g, '')) || 0);
+                        setNominalUpload({ docKey: doc.key, label: doc.label, file });
                       }
                     }}
                   />
@@ -266,7 +367,7 @@ export default function JamaahDetail() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {entries.map((entry, idx) => {
                     const isImage = /\.(jpg|jpeg|png)$/i.test(entry.file);
-                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx) + `&_t=${cacheKey}`;
+                    const fileUrl = getMultiDocumentUrl(id, doc.key, idx, jamaah.dokumen_akses, cacheKey);
                     return (
                       <div key={idx} className="relative border border-gray-200 rounded-lg p-2 group">
                         {isImage ? (
@@ -295,7 +396,7 @@ export default function JamaahDetail() {
                           Rp {entry.nominal?.toLocaleString('id-ID') || '0'}
                         </p>
                         <a
-                          href={getMultiDocumentDownloadUrl(id, doc.key, idx)}
+                          href={getMultiDocumentDownloadUrl(id, doc.key, idx, jamaah.dokumen_akses)}
                           className="mt-1 flex items-center justify-center px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded hover:bg-emerald-100"
                         >
                           Download
@@ -316,6 +417,19 @@ export default function JamaahDetail() {
           );
         })}
       </div>
+
+      {nominalUpload && (
+        <NominalDialog
+          title={`${nominalUpload.label} — nominal pembayaran`}
+          file={nominalUpload.file}
+          sisa={jamaah.tagihan?.harga_diatur ? jamaah.tagihan.sisa : 0}
+          onCancel={() => setNominalUpload(null)}
+          onSubmit={async (nominal) => {
+            await handleUpload(nominalUpload.docKey, nominalUpload.file, nominal);
+            setNominalUpload(null);
+          }}
+        />
+      )}
 
       {/* Lightbox Modal */}
       {lightbox && (

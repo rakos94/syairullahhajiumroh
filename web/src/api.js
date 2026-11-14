@@ -108,16 +108,34 @@ export async function deleteJamaah(id) {
   return res.json();
 }
 
+const extByType = { 'image/jpeg': '.jpg', 'image/png': '.png', 'application/pdf': '.pdf' };
+
+// The server checks the file extension, so the upload must keep a real filename.
+function withFilename(blob, originalName) {
+  let name = originalName || 'dokumen';
+  const ext = extByType[blob.type];
+  // If compression changed the format, make the extension match the content.
+  if (ext && !name.toLowerCase().endsWith(ext) && !(ext === '.jpg' && /\.jpe?g$/i.test(name))) {
+    name = name.replace(/\.[^.]*$/, '') + ext;
+  }
+  return new File([blob], name, { type: blob.type, lastModified: Date.now() });
+}
+
 export async function uploadDocument(id, docType, file, nominal) {
+  const originalName = file.name;
   if (file.type.startsWith('image/')) {
-    file = await imageCompression(file, {
+    // browser-image-compression returns a plain Blob (not a File) when it
+    // actually compresses; FormData would then send it as "blob" with no
+    // extension and the server rejects it. Re-wrap it with the original name.
+    const compressed = await imageCompression(file, {
       maxSizeMB: 1,
       maxWidthOrHeight: 1920,
       useWebWorker: true,
     });
+    file = withFilename(compressed, originalName);
   }
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', file, file.name);
   if (nominal !== undefined) formData.append('nominal', nominal);
   const res = await authFetch(`${BASE}/jamaah/${id}/upload/${docType}`, {
     method: 'POST',
@@ -130,20 +148,34 @@ export async function uploadDocument(id, docType, file, nominal) {
   return res.json();
 }
 
-export function getDocumentUrl(id, docType) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}`;
+// Document links need the short-lived signature (`dokumen_akses`) returned by
+// fetchJamaahById, because <img>/<a> can't send the Authorization header.
+function documentUrl(id, docType, akses, { index, download, cacheKey } = {}) {
+  const params = new URLSearchParams();
+  if (index !== undefined) params.set('index', index);
+  if (download) params.set('download', 'true');
+  if (akses) {
+    params.set('exp', akses.exp);
+    params.set('sig', akses.sig);
+  }
+  if (cacheKey) params.set('_t', cacheKey);
+  return `${BASE}/jamaah/${id}/dokumen/${docType}?${params}`;
 }
 
-export function getDocumentDownloadUrl(id, docType) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?download=true`;
+export function getDocumentUrl(id, docType, akses, cacheKey) {
+  return documentUrl(id, docType, akses, { cacheKey });
 }
 
-export function getMultiDocumentUrl(id, docType, index) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}`;
+export function getDocumentDownloadUrl(id, docType, akses) {
+  return documentUrl(id, docType, akses, { download: true });
 }
 
-export function getMultiDocumentDownloadUrl(id, docType, index) {
-  return `${BASE}/jamaah/${id}/dokumen/${docType}?index=${index}&download=true`;
+export function getMultiDocumentUrl(id, docType, index, akses, cacheKey) {
+  return documentUrl(id, docType, akses, { index, cacheKey });
+}
+
+export function getMultiDocumentDownloadUrl(id, docType, index, akses) {
+  return documentUrl(id, docType, akses, { index, download: true });
 }
 
 export async function deleteDocument(id, docType, index) {
@@ -224,4 +256,178 @@ export async function fetchAuditLogsByEntity(entityType, entityId, { page = 1, l
   const res = await authFetch(`${BASE}/audit-logs/${entityType}/${entityId}?${params}`);
   if (!res.ok) throw new Error('Gagal memuat audit log');
   return res.json();
+}
+
+// Public: jamaah self-service manasik room lookup (no auth)
+export async function cekKamarManasik(nik, tanggal_lahir) {
+  const res = await fetch(`${BASE}/portal/cek-kamar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nik, tanggal_lahir }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Terlalu banyak percobaan, silakan coba lagi beberapa menit lagi');
+    throw new Error(data.error || 'Gagal memuat data');
+  }
+  return data;
+}
+
+// Bulk set manasik placement. Omit a field (undefined) to leave it unchanged; '' clears it.
+export async function bulkSetManasik(ids, { gedung_manasik, kamar_manasik, rombongan, regu }) {
+  const res = await authFetch(`${BASE}/jamaah/bulk-manasik`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, gedung_manasik, kamar_manasik, rombongan, regu }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Gagal mengatur kamar manasik');
+  return data;
+}
+
+// Pengumuman (announcements)
+export async function fetchPublicPengumuman() {
+  const res = await fetch(`${BASE}/portal/pengumuman`);
+  if (!res.ok) throw new Error('Gagal memuat pengumuman');
+  return res.json();
+}
+
+export async function fetchPengumumanList() {
+  const res = await authFetch(`${BASE}/pengumuman`);
+  if (!res.ok) throw new Error('Gagal memuat pengumuman');
+  return res.json();
+}
+
+async function savePengumuman(url, method, data) {
+  const res = await authFetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      judul: data.judul,
+      isi: data.isi,
+      dipublikasikan: data.dipublikasikan,
+      disematkan: data.disematkan,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Gagal menyimpan pengumuman');
+  return body;
+}
+
+export function createPengumuman(data) {
+  return savePengumuman(`${BASE}/pengumuman`, 'POST', data);
+}
+
+export function updatePengumuman(id, data) {
+  return savePengumuman(`${BASE}/pengumuman/${id}`, 'PUT', data);
+}
+
+export async function deletePengumuman(id) {
+  const res = await authFetch(`${BASE}/pengumuman/${id}`, { method: 'DELETE' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Gagal menghapus pengumuman');
+  return body;
+}
+
+// Manasik (rooming list, import/export, attendance)
+async function jsonOrThrow(res, fallback) {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || fallback);
+  return body;
+}
+
+export async function fetchManasikJamaah(paketId) {
+  const res = await authFetch(`${BASE}/manasik/jamaah?paket_id=${paketId}`);
+  return jsonOrThrow(res, 'Gagal memuat daftar kamar');
+}
+
+export async function downloadManasikExcel(paketId) {
+  const res = await authFetch(`${BASE}/manasik/export?paket_id=${paketId}`);
+  if (!res.ok) await jsonOrThrow(res, 'Gagal mengunduh excel');
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : 'daftar-kamar-manasik.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function importManasik(paketId, file, dryRun) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await authFetch(`${BASE}/manasik/import?paket_id=${paketId}&dry_run=${dryRun}`, {
+    method: 'POST',
+    body: formData,
+  });
+  return jsonOrThrow(res, 'Gagal import file');
+}
+
+export async function fetchSesiManasik(paketId) {
+  const res = await authFetch(`${BASE}/manasik/sesi?paket_id=${paketId}`);
+  return jsonOrThrow(res, 'Gagal memuat sesi manasik');
+}
+
+export async function createSesiManasik(data) {
+  const res = await authFetch(`${BASE}/manasik/sesi`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return jsonOrThrow(res, 'Gagal membuat sesi');
+}
+
+export async function deleteSesiManasik(id) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${id}`, { method: 'DELETE' });
+  return jsonOrThrow(res, 'Gagal menghapus sesi');
+}
+
+export async function fetchSesiDetail(id) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${id}`);
+  return jsonOrThrow(res, 'Gagal memuat sesi');
+}
+
+export async function markHadir(sesiId, payload) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${sesiId}/hadir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow(res, 'Gagal mencatat kehadiran');
+}
+
+export async function unmarkHadir(sesiId, jamaahId) {
+  const res = await authFetch(`${BASE}/manasik/sesi/${sesiId}/hadir/${jamaahId}`, { method: 'DELETE' });
+  return jsonOrThrow(res, 'Gagal membatalkan kehadiran');
+}
+
+// Tagihan (outstanding balance report)
+function tagihanParams({ paket_id = '', belum_lunas = false } = {}) {
+  const params = new URLSearchParams();
+  if (paket_id) params.set('paket_id', paket_id);
+  if (belum_lunas) params.set('belum_lunas', 'true');
+  return params;
+}
+
+export async function fetchTagihan(filters) {
+  const res = await authFetch(`${BASE}/tagihan?${tagihanParams(filters)}`);
+  return jsonOrThrow(res, 'Gagal memuat laporan tagihan');
+}
+
+export async function downloadTagihanExcel(filters) {
+  const res = await authFetch(`${BASE}/tagihan/export?${tagihanParams(filters)}`);
+  if (!res.ok) await jsonOrThrow(res, 'Gagal mengunduh excel');
+  const match = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : 'laporan-tagihan.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

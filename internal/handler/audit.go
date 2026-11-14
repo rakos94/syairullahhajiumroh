@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"syairullahhajiumroh/internal/model"
@@ -60,6 +61,34 @@ func formatDate(t time.Time) string {
 	return fmt.Sprintf("%02d/%02d/%04d", t.Day(), t.Month(), t.Year())
 }
 
+// formatRupiah formats 25000000 as "Rp 25.000.000".
+func formatRupiah(v float64) string {
+	neg := v < 0
+	if neg {
+		v = -v
+	}
+	s := fmt.Sprintf("%.0f", v)
+	var out []byte
+	for i := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, '.')
+		}
+		out = append(out, s[i])
+	}
+	if neg {
+		return "-Rp " + string(out)
+	}
+	return "Rp " + string(out)
+}
+
+func formatPilihanHarga(list []model.PilihanHarga) string {
+	parts := make([]string, 0, len(list))
+	for _, p := range list {
+		parts = append(parts, p.Nama+" "+formatRupiah(p.Harga))
+	}
+	return strings.Join(parts, ", ")
+}
+
 func formatBool(b bool) string {
 	if b {
 		return "Ya"
@@ -108,11 +137,20 @@ func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
 	}
 	diffField(&changes, "Status Pembayaran", oldStatus, newStatus)
 
+	diffField(&changes, "Pilihan Harga", old.PilihanHarga, new.PilihanHarga)
+	diffField(&changes, "Potongan", formatRupiah(old.Potongan), formatRupiah(new.Potongan))
+	diffField(&changes, "Keterangan Potongan", old.KeteranganPotongan, new.KeteranganPotongan)
 	diffField(&changes, "No Rekening Haji", old.NoRekeningHaji, new.NoRekeningHaji)
 	diffField(&changes, "Tipe Bank", old.TipeBank, new.TipeBank)
 	diffField(&changes, "Batik Nasional Sudah Dijahit", formatBool(old.BatikNasionalSudahDijahit), formatBool(new.BatikNasionalSudahDijahit))
 	diffField(&changes, "Batik KBIH Sudah Diterima", formatBool(old.BatikKBIHSudahDiterima), formatBool(new.BatikKBIHSudahDiterima))
 	diffField(&changes, "Koper Sudah Diterima", formatBool(old.KoperSudahDiterima), formatBool(new.KoperSudahDiterima))
+	diffField(&changes, "Gedung Manasik", old.GedungManasik, new.GedungManasik)
+	diffField(&changes, "Kamar Manasik", old.KamarManasik, new.KamarManasik)
+	diffField(&changes, "Rombongan", old.Rombongan, new.Rombongan)
+	diffField(&changes, "Regu", old.Regu, new.Regu)
+	diffField(&changes, "Ketua Regu", formatBool(old.KetuaRegu), formatBool(new.KetuaRegu))
+	diffField(&changes, "Ketua Rombongan", formatBool(old.KetuaRombongan), formatBool(new.KetuaRombongan))
 	diffField(&changes, "Keterangan", old.Keterangan, new.Keterangan)
 
 	return changes
@@ -123,5 +161,7 @@ func diffPaket(old, new *model.Paket) []model.FieldChange {
 	diffField(&changes, "Tipe", old.Tipe, new.Tipe)
 	diffField(&changes, "Tahun", fmt.Sprintf("%d", old.Tahun), fmt.Sprintf("%d", new.Tahun))
 	diffField(&changes, "Bulan", fmt.Sprintf("%d", old.Bulan), fmt.Sprintf("%d", new.Bulan))
+	diffField(&changes, "Harga", formatRupiah(old.Harga), formatRupiah(new.Harga))
+	diffField(&changes, "Pilihan Harga", formatPilihanHarga(old.PilihanHarga), formatPilihanHarga(new.PilihanHarga))
 	return changes
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchAdminList, createAdmin, updateAdmin, deleteAdmin } from '../api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 
 const emptyForm = { username: '', password: '', role: 'admin' };
 
