@@ -54,7 +54,14 @@ func main() {
 				{Nama: "JKS"},
 			},
 		},
-		{Tipe: "umroh", Tahun: 2026, Bulan: 4, Harga: 32500000},
+		{
+			Tipe: "umroh", Tahun: 2026, Bulan: 4, Harga: 32500000,
+			PilihanHarga: []model.PilihanHarga{
+				{Nama: "Quad", Harga: 32500000},
+				{Nama: "Triple", Harga: 34500000},
+				{Nama: "Double", Harga: 37500000},
+			},
+		},
 		{Tipe: "umroh", Tahun: 2026, Bulan: 5}, // price left unset on purpose (shows "belum diatur")
 	}
 
@@ -101,6 +108,7 @@ func main() {
 			BatikNasionalSudahDijahit: true, BatikKBIHSudahDiterima: false, KoperSudahDiterima: false,
 			GedungManasik: "Gedung B", KamarManasik: "201",
 			Rombongan: "1", Regu: "1",
+			Potongan: 2000000, KeteranganPotongan: "Daftar awal",
 		},
 		{
 			Nama: "muhammad rizki", NIK: "3201010101010003", NomorPaspor: "A1000003",
@@ -118,6 +126,7 @@ func main() {
 			JenisKelamin: "perempuan", PaketID: umrohApril2026,
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Tanggal: time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "belum_bayar",
+			PilihanHarga: "Triple",
 		},
 		{
 			Nama: "hasan basri", NIK: "3201010101010005", NomorPaspor: "A1000005",
@@ -173,6 +182,7 @@ func main() {
 			TanggalKeberangkatan: &model.KeberangkatanJamaah{Tanggal: time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)},
 			StatusPembayaran: "lunas",
 			KoperSudahDiterima: true,
+			PilihanHarga: "Double",
 		},
 		{
 			Nama: "ibrahim malik", NIK: "3201010101010011", NomorPaspor: "A1000011",

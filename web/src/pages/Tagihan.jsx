@@ -150,6 +150,13 @@ export default function Tagihan() {
                       </td>
                       <td className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap">
                         {r.harga_diatur ? formatRupiah(r.harga) : <span className="text-gray-300">-</span>}
+                        {(r.pilihan_harga || r.potongan > 0) && (
+                          <div className="text-xs text-gray-500">
+                            {[r.pilihan_harga, r.potongan > 0 && `diskon ${formatRupiah(r.potongan)}`]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap">
                         {formatRupiah(r.total_dibayar)}

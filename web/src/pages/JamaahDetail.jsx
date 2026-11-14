@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
 import { formatRupiah } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import CopyButton from '../components/CopyButton';
 
 const singleDocTypes = [
   { key: 'ktp', label: 'KTP', field: 'foto_ktp' },
@@ -35,7 +36,7 @@ export default function JamaahDetail() {
   const [lightbox, setLightbox] = useState(null);
   const [cacheKey, setCacheKey] = useState(Date.now());
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const data = await fetchJamaahById(id);
       setJamaah(data);
@@ -45,11 +46,11 @@ export default function JamaahDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [loadData]);
 
   const handleUpload = async (docType, file, nominal) => {
     try {
@@ -83,7 +84,12 @@ export default function JamaahDetail() {
 
   const infoRows = [
     ['Nama', jamaah.nama],
-    ['NIK', jamaah.nik],
+    ['NIK', (
+      <span className="inline-flex items-center gap-1">
+        <span className="tabular-nums">{jamaah.nik}</span>
+        <CopyButton text={jamaah.nik} label="Salin NIK" />
+      </span>
+    )],
     ['Nomor Paspor', jamaah.nomor_paspor || '-'],
     ['Alamat', jamaah.alamat || '-'],
     ['No HP', jamaah.no_hp || '-'],
@@ -167,8 +173,17 @@ export default function JamaahDetail() {
           {jamaah.tagihan.harga_diatur ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="rounded-lg border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">Harga paket</p>
+                <p className="text-sm text-gray-500">Harga</p>
                 <p className="text-lg font-semibold text-gray-900">{formatRupiah(jamaah.tagihan.harga)}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {jamaah.tagihan.pilihan_harga || 'Harga paket'}: {formatRupiah(jamaah.tagihan.harga_dasar)}
+                </p>
+                {jamaah.tagihan.potongan > 0 && (
+                  <p className="text-xs text-gray-500">
+                    Potongan −{formatRupiah(jamaah.tagihan.potongan)}
+                    {jamaah.keterangan_potongan ? ` (${jamaah.keterangan_potongan})` : ''}
+                  </p>
+                )}
               </div>
               <div className="rounded-lg border border-gray-200 p-4">
                 <p className="text-sm text-gray-500">Sudah dibayar</p>

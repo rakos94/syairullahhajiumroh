@@ -206,6 +206,34 @@ func (r *JamaahRepository) FindByPaket(ctx context.Context, paketID primitive.Ob
 	return results, nil
 }
 
+// CountUsingPilihanHarga counts jamaah of a paket whose chosen price option
+// is one of names.
+func (r *JamaahRepository) CountUsingPilihanHarga(ctx context.Context, paketID primitive.ObjectID, names []string) (map[string]int64, error) {
+	out := map[string]int64{}
+	if len(names) == 0 {
+		return out, nil
+	}
+	cursor, err := r.collection.Aggregate(ctx, mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"paket_id": paketID, "deleted_at": nil, "pilihan_harga": bson.M{"$in": names}}}},
+		{{Key: "$group", Value: bson.M{"_id": "$pilihan_harga", "n": bson.M{"$sum": 1}}}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		ID string `bson:"_id"`
+		N  int64  `bson:"n"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.ID] = r.N
+	}
+	return out, nil
+}
+
 // FindActive returns all non-deleted jamaah, optionally of one paket, sorted by name.
 func (r *JamaahRepository) FindActive(ctx context.Context, paketID *primitive.ObjectID) ([]model.Jamaah, error) {
 	filter := bson.M{"deleted_at": nil}

@@ -16,13 +16,17 @@ build: build-web
 docker-up:
 	$(COMPOSE) up -d mongodb
 
-# Full app (MongoDB + app) in Docker on http://localhost:8080
+# Full app (MongoDB + app) in Docker on http://localhost:8080.
+# Rebuilds the image and always recreates the app container (podman-compose
+# does not recreate it on image change by itself).
 docker-app:
-	$(COMPOSE) up -d --build
+	$(COMPOSE) up -d mongodb
+	$(COMPOSE) build app
+	$(COMPOSE) up -d --force-recreate --no-deps app
 
 # Production with HTTPS via Caddy; requires DOMAIN in .env
-docker-https:
-	$(COMPOSE) --profile https up -d --build
+docker-https: docker-app
+	$(COMPOSE) --profile https up -d caddy
 
 docker-logs:
 	$(COMPOSE) logs -f app

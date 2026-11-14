@@ -30,6 +30,11 @@ type Jamaah struct {
 	Paket                     *Paket             `json:"paket,omitempty" bson:"-"`
 	TanggalKeberangkatan      *KeberangkatanJamaah `json:"tanggal_keberangkatan,omitempty" bson:"tanggal_keberangkatan,omitempty"`
 	StatusPembayaran          string             `json:"status_pembayaran" bson:"status_pembayaran" binding:"required,oneof=belum_bayar dp lunas"`
+	// PilihanHarga is the name of the paket price option chosen (empty = paket price).
+	PilihanHarga              string             `json:"pilihan_harga" bson:"pilihan_harga"`
+	// Potongan is a per-jamaah discount in Rupiah.
+	Potongan                  float64            `json:"potongan" bson:"potongan"`
+	KeteranganPotongan        string             `json:"keterangan_potongan" bson:"keterangan_potongan"`
 	NoRekeningHaji            string             `json:"no_rekening_haji" bson:"no_rekening_haji"`
 	TipeBank                  string             `json:"tipe_bank" bson:"tipe_bank"`
 	BatikNasionalSudahDijahit bool               `json:"batik_nasional_sudah_dijahit" bson:"batik_nasional_sudah_dijahit"`

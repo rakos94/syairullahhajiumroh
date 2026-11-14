@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPublicPengumuman } from '../api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 import CekKamarCard from '../components/CekKamarCard';
 
 function formatTanggal(dateStr) {

@@ -15,8 +15,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
-# -p 1 compiles one package at a time so the build fits in ~2GB RAM (small VPS / Docker VM).
-RUN CGO_ENABLED=0 go build -p 1 -trimpath -ldflags="-s -w" -o /out/server ./cmd/main.go
+# -p 1 compiles one package at a time and GOGC=25 makes the compiler collect
+# garbage more often, so the build fits in ~2GB RAM (small VPS / Docker VM)
+# even with MongoDB running alongside.
+RUN CGO_ENABLED=0 GOGC=25 go build -p 1 -trimpath -ldflags="-s -w" -o /out/server ./cmd/main.go
 
 # 3) Small runtime image
 FROM alpine:3.20

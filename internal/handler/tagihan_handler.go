@@ -176,41 +176,52 @@ func (h *TagihanHandler) Export(c *gin.Context) {
 	textStyle, _ := f.NewStyle(&excelize.Style{NumFmt: 49})
 	boldMoney, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}, CustomNumFmt: &rupiah})
 
-	headers := []string{"No", "Nama", "NIK", "No HP", "Paket", "Status", "Harga", "Dibayar", "Sisa", "Catatan"}
+	// Columns: A No, B Nama, C NIK, D No HP, E Paket, F Pilihan Harga, G Status,
+	// H Harga dasar, I Potongan, J Harga, K Dibayar, L Sisa, M Catatan
+	headers := []string{"No", "Nama", "NIK", "No HP", "Paket", "Pilihan Harga", "Status", "Harga Dasar", "Potongan", "Harga", "Dibayar", "Sisa", "Catatan"}
 	for i, hdr := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellStr(sheet, cell, hdr)
 	}
-	f.SetCellStyle(sheet, "A1", "J1", headerStyle)
+	f.SetCellStyle(sheet, "A1", "M1", headerStyle)
 
+	var totalPotongan float64
 	for i, r := range rows {
 		row := i + 2
-		f.SetCellInt(sheet, fmt.Sprintf("A%d", row), i+1)
-		f.SetCellStr(sheet, fmt.Sprintf("B%d", row), r.Nama)
-		f.SetCellStr(sheet, fmt.Sprintf("C%d", row), r.NIK)
-		f.SetCellStr(sheet, fmt.Sprintf("D%d", row), r.NoHP)
-		f.SetCellStr(sheet, fmt.Sprintf("E%d", row), r.Paket)
-		f.SetCellStr(sheet, fmt.Sprintf("F%d", row), statusPembayaranLabel[r.StatusPembayaran])
+		cell := func(col string) string { return fmt.Sprintf("%s%d", col, row) }
+		f.SetCellInt(sheet, cell("A"), i+1)
+		f.SetCellStr(sheet, cell("B"), r.Nama)
+		f.SetCellStr(sheet, cell("C"), r.NIK)
+		f.SetCellStr(sheet, cell("D"), r.NoHP)
+		f.SetCellStr(sheet, cell("E"), r.Paket)
+		f.SetCellStr(sheet, cell("F"), r.PilihanHarga)
+		f.SetCellStr(sheet, cell("G"), statusPembayaranLabel[r.StatusPembayaran])
 		if r.HargaDiatur {
-			f.SetCellFloat(sheet, fmt.Sprintf("G%d", row), r.Harga, 0, 64)
-			f.SetCellFloat(sheet, fmt.Sprintf("I%d", row), r.Sisa, 0, 64)
+			f.SetCellFloat(sheet, cell("H"), r.HargaDasar, 0, 64)
+			if r.Potongan > 0 {
+				f.SetCellFloat(sheet, cell("I"), r.Potongan, 0, 64)
+				totalPotongan += r.Potongan
+			}
+			f.SetCellFloat(sheet, cell("J"), r.Harga, 0, 64)
+			f.SetCellFloat(sheet, cell("L"), r.Sisa, 0, 64)
 		}
-		f.SetCellFloat(sheet, fmt.Sprintf("H%d", row), r.TotalDibayar, 0, 64)
-		f.SetCellStr(sheet, fmt.Sprintf("J%d", row), r.Peringatan)
+		f.SetCellFloat(sheet, cell("K"), r.TotalDibayar, 0, 64)
+		f.SetCellStr(sheet, cell("M"), r.Peringatan)
 	}
 	last := len(rows) + 1
 	if len(rows) > 0 {
 		f.SetCellStyle(sheet, "C2", fmt.Sprintf("D%d", last), textStyle)
-		f.SetCellStyle(sheet, "G2", fmt.Sprintf("I%d", last), moneyStyle)
+		f.SetCellStyle(sheet, "H2", fmt.Sprintf("L%d", last), moneyStyle)
 	}
 	total := last + 2
-	f.SetCellStr(sheet, fmt.Sprintf("F%d", total), "Total")
-	f.SetCellFloat(sheet, fmt.Sprintf("G%d", total), sum.TotalTagihan, 0, 64)
-	f.SetCellFloat(sheet, fmt.Sprintf("H%d", total), sum.TotalDibayar, 0, 64)
-	f.SetCellFloat(sheet, fmt.Sprintf("I%d", total), sum.TotalSisa, 0, 64)
-	f.SetCellStyle(sheet, fmt.Sprintf("F%d", total), fmt.Sprintf("I%d", total), boldMoney)
+	f.SetCellStr(sheet, fmt.Sprintf("G%d", total), "Total")
+	f.SetCellFloat(sheet, fmt.Sprintf("I%d", total), totalPotongan, 0, 64)
+	f.SetCellFloat(sheet, fmt.Sprintf("J%d", total), sum.TotalTagihan, 0, 64)
+	f.SetCellFloat(sheet, fmt.Sprintf("K%d", total), sum.TotalDibayar, 0, 64)
+	f.SetCellFloat(sheet, fmt.Sprintf("L%d", total), sum.TotalSisa, 0, 64)
+	f.SetCellStyle(sheet, fmt.Sprintf("G%d", total), fmt.Sprintf("L%d", total), boldMoney)
 
-	for col, w := range map[string]float64{"A": 5, "B": 26, "C": 20, "D": 16, "E": 18, "F": 12, "G": 16, "H": 16, "I": 16, "J": 44} {
+	for col, w := range map[string]float64{"A": 5, "B": 26, "C": 20, "D": 16, "E": 18, "F": 14, "G": 12, "H": 16, "I": 14, "J": 16, "K": 16, "L": 16, "M": 44} {
 		f.SetColWidth(sheet, col, col, w)
 	}
 	f.SetPanes(sheet, &excelize.Panes{Freeze: true, YSplit: 1, TopLeftCell: "A2", ActivePane: "bottomLeft"})

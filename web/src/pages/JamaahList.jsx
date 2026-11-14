@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchJamaah, deleteJamaah, fetchPaketList, bulkSetManasik } from '../api';
 import StatusBadge from '../components/StatusBadge';
@@ -43,7 +43,7 @@ export default function JamaahList() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetchJamaah({ paket_id: filterPaket, search: debouncedSearch, status_pembayaran: filterStatus, kelengkapan: filterKelengkapan, page, limit: PAGE_SIZE });
@@ -56,11 +56,11 @@ export default function JamaahList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterPaket, filterStatus, filterKelengkapan, debouncedSearch, page]);
 
   useEffect(() => {
     loadData();
-  }, [filterPaket, filterStatus, filterKelengkapan, debouncedSearch, page]);
+  }, [loadData]);
 
   // Reset to page 1 when filter or search changes
   useEffect(() => {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createJamaah, fetchJamaahById, updateJamaah, fetchPaketList } from '../api';
+import RupiahInput from '../components/RupiahInput';
+import { formatRupiah } from '../utils/format';
 
 const emptyForm = {
   nama: '',
@@ -14,6 +16,9 @@ const emptyForm = {
   paket_id: '',
   tanggal_keberangkatan: null,
   status_pembayaran: 'belum_bayar',
+  pilihan_harga: '',
+  potongan: 0,
+  keterangan_potongan: '',
   no_rekening_haji: '',
   tipe_bank: '',
   batik_nasional_sudah_dijahit: false,
@@ -85,6 +90,9 @@ export default function JamaahForm() {
             paket_id: data.paket_id || '',
             tanggal_keberangkatan: data.tanggal_keberangkatan || null,
             status_pembayaran: data.status_pembayaran || 'belum_bayar',
+            pilihan_harga: data.pilihan_harga || '',
+            potongan: data.potongan || 0,
+            keterangan_potongan: data.keterangan_potongan || '',
             no_rekening_haji: data.no_rekening_haji || '',
             tipe_bank: data.tipe_bank || '',
             batik_nasional_sudah_dijahit: data.batik_nasional_sudah_dijahit || false,
@@ -139,6 +147,9 @@ export default function JamaahForm() {
   };
 
   const selectedPaket = paketOptions.find((p) => p.id === form.paket_id);
+  const paketPilihanHarga = selectedPaket?.pilihan_harga || [];
+  const pilihanTerpilih = paketPilihanHarga.find((o) => o.nama === form.pilihan_harga);
+  const hargaDasar = pilihanTerpilih ? pilihanTerpilih.harga : selectedPaket?.harga || 0;
   const paketDepartures = selectedPaket?.tanggal_keberangkatan || [];
 
   const formatDmyFromIso = (isoStr) => {
@@ -279,7 +290,7 @@ export default function JamaahForm() {
               <select
                 name="paket_id"
                 value={form.paket_id}
-                onChange={(e) => setForm((prev) => ({ ...prev, paket_id: e.target.value, tanggal_keberangkatan: null }))}
+                onChange={(e) => setForm((prev) => ({ ...prev, paket_id: e.target.value, tanggal_keberangkatan: null, pilihan_harga: '' }))}
                 required
                 className={inputClass}
               >
@@ -372,6 +383,81 @@ export default function JamaahForm() {
               />
             </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {paketPilihanHarga.length > 0 && (
+              <div>
+                <label htmlFor="pilihan_harga" className={labelClass}>
+                  Pilihan Harga
+                </label>
+                <select
+                  id="pilihan_harga"
+                  name="pilihan_harga"
+                  value={form.pilihan_harga}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">
+                    {selectedPaket?.harga ? `Harga paket (${formatRupiah(selectedPaket.harga)})` : '-- Pilih --'}
+                  </option>
+                  {paketPilihanHarga.map((o) => (
+                    <option key={o.nama} value={o.nama}>
+                      {o.nama} ({formatRupiah(o.harga)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="potongan" className={labelClass}>
+                Potongan / Diskon
+              </label>
+              <RupiahInput
+                id="potongan"
+                value={form.potongan}
+                onChange={(potongan) => setForm((prev) => ({ ...prev, potongan }))}
+                placeholder="0"
+                className={inputClass}
+              />
+            </div>
+
+            {form.potongan > 0 && (
+              <div>
+                <label htmlFor="keterangan_potongan" className={labelClass}>
+                  Alasan Potongan
+                </label>
+                <input
+                  id="keterangan_potongan"
+                  name="keterangan_potongan"
+                  value={form.keterangan_potongan}
+                  onChange={handleChange}
+                  placeholder="Contoh: daftar awal, keluarga"
+                  className={inputClass}
+                />
+              </div>
+            )}
+          </div>
+
+          <p className="mt-3 text-sm text-gray-600">
+            {hargaDasar > 0 ? (
+              <>
+                Harga untuk jamaah ini:{' '}
+                <span className="font-semibold text-gray-900">{formatRupiah(Math.max(hargaDasar - form.potongan, 0))}</span>
+                {form.potongan > 0 && (
+                  <span className="text-gray-500">
+                    {' '}
+                    ({formatRupiah(hargaDasar)} − {formatRupiah(form.potongan)})
+                  </span>
+                )}
+                {form.potongan > hargaDasar && (
+                  <span className="block text-red-600">Potongan melebihi harga.</span>
+                )}
+              </>
+            ) : form.paket_id ? (
+              <span className="text-amber-700">Harga paket belum diatur; sisa tagihan belum bisa dihitung.</span>
+            ) : null}
+          </p>
         </Section>
 
         {selectedPaket?.tipe === 'haji' && (

@@ -111,6 +111,10 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
 		return
 	}
+	if msg := validateHargaJamaah(&jamaah, paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 
 	// Validate departure date for pakets with departure options
 	if len(paket.TanggalKeberangkatan) > 0 {
@@ -277,6 +281,10 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 	paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
+		return
+	}
+	if msg := validateHargaJamaah(&jamaah, paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
 
@@ -613,6 +621,28 @@ func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
 	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "delete_document", fmt.Sprintf("Menghapus dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
+}
+
+// validateHargaJamaah checks the chosen price option and discount against
+// the paket. It returns an error message, or "" when valid.
+func validateHargaJamaah(j *model.Jamaah, paket *model.Paket) string {
+	j.PilihanHarga = strings.TrimSpace(j.PilihanHarga)
+	j.KeteranganPotongan = strings.TrimSpace(j.KeteranganPotongan)
+	if j.PilihanHarga != "" {
+		if _, ok := paket.FindPilihanHarga(j.PilihanHarga); !ok {
+			return fmt.Sprintf("pilihan harga %q tidak ada di %s", j.PilihanHarga, paket.Label)
+		}
+	}
+	if j.Potongan < 0 {
+		return "potongan tidak boleh negatif"
+	}
+	if dasar, _ := model.HargaDasarJamaah(j, paket); j.Potongan > 0 && dasar > 0 && j.Potongan > dasar {
+		return fmt.Sprintf("potongan (%s) melebihi harga (%s)", formatRupiah(j.Potongan), formatRupiah(dasar))
+	}
+	if j.Potongan == 0 {
+		j.KeteranganPotongan = ""
+	}
+	return ""
 }
 
 func validDocTypesList() string {
