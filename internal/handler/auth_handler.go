@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"syairullahhajiumroh/internal/config"
 	"syairullahhajiumroh/internal/model"
 	"syairullahhajiumroh/internal/repository"
 
@@ -72,6 +73,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	if !ok {
 		return
 	}
+	admin.PasswordDefault = bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(config.DefaultAdminPassword)) == nil
 	c.JSON(http.StatusOK, admin)
 }
 

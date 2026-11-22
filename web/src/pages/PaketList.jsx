@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchPaketList, createPaket, updatePaket, deletePaket } from '../api';
+import RupiahInput from '../components/RupiahInput';
+import { formatRupiah } from '../utils/format';
 
 const bulanOptions = [
   { value: 1, label: 'Januari' },
@@ -16,7 +18,7 @@ const bulanOptions = [
   { value: 12, label: 'Desember' },
 ];
 
-const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0, tanggal_keberangkatan: [] };
+const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0, harga: 0, pilihan_harga: [], tanggal_keberangkatan: [] };
 
 export default function PaketList() {
   const [paketList, setPaketList] = useState([]);
@@ -55,6 +57,8 @@ export default function PaketList() {
       tipe: paket.tipe,
       tahun: paket.tahun,
       bulan: paket.bulan || 0,
+      harga: paket.harga || 0,
+      pilihan_harga: (paket.pilihan_harga || []).map((p) => ({ nama: p.nama, harga: p.harga })),
       tanggal_keberangkatan: (paket.tanggal_keberangkatan || []).map((tk) => ({
         nama: tk.nama,
         tanggal: tk.tanggal ? tk.tanggal.slice(0, 10) : '',
@@ -83,6 +87,10 @@ export default function PaketList() {
       tipe: form.tipe,
       tahun: Number(form.tahun),
       bulan: form.tipe === 'umroh' ? Number(form.bulan) : 0,
+      harga: Number(form.harga) || 0,
+      pilihan_harga: form.pilihan_harga
+        .filter((p) => p.nama.trim() || p.harga)
+        .map((p) => ({ nama: p.nama.trim(), harga: Number(p.harga) || 0 })),
       tanggal_keberangkatan:
         form.tanggal_keberangkatan.length > 0
           ? form.tanggal_keberangkatan
@@ -107,6 +115,21 @@ export default function PaketList() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addPilihanHarga = () => {
+    setForm((prev) => ({ ...prev, pilihan_harga: [...prev.pilihan_harga, { nama: '', harga: 0 }] }));
+  };
+
+  const updatePilihanHarga = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      pilihan_harga: prev.pilihan_harga.map((p, i) => (i === index ? { ...p, [field]: value } : p)),
+    }));
+  };
+
+  const removePilihanHarga = (index) => {
+    setForm((prev) => ({ ...prev, pilihan_harga: prev.pilihan_harga.filter((_, i) => i !== index) }));
   };
 
   const addKeberangkatan = () => {
@@ -168,7 +191,7 @@ export default function PaketList() {
             {editingId ? 'Edit Paket' : 'Tambah Paket Baru'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex flex-col sm:flex-row gap-3 items-start">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
                 <select
@@ -212,6 +235,72 @@ export default function PaketList() {
                   </select>
                 </div>
               )}
+              <div>
+                <label htmlFor="paket-harga" className="block text-sm font-medium text-gray-700 mb-1">
+                  Harga per jamaah
+                </label>
+                <RupiahInput
+                  id="paket-harga"
+                  value={form.harga}
+                  onChange={(harga) => setForm({ ...form, harga })}
+                  placeholder="0"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-2">
+              Harga dipakai untuk menghitung sisa tagihan tiap jamaah (harga dikurangi bukti DP dan
+              pelunasan yang diunggah). Kosongkan jika belum ditentukan.
+            </p>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Pilihan Harga (opsional)</label>
+                <button
+                  type="button"
+                  onClick={addPilihanHarga}
+                  className="text-sm text-emerald-600 hover:text-emerald-800 font-medium"
+                >
+                  + Tambah
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">
+                Misalnya tipe kamar umroh: Quad, Triple, Double. Jamaah yang memilih salah satu akan memakai
+                harga pilihan tersebut; yang tidak memilih memakai harga per jamaah di atas.
+              </p>
+              {form.pilihan_harga.length === 0 && (
+                <p className="text-sm text-gray-400">Belum ada pilihan harga.</p>
+              )}
+              <div className="space-y-2">
+                {form.pilihan_harga.map((p, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="Nama (cth: Double)"
+                      aria-label={`Nama pilihan harga ${i + 1}`}
+                      value={p.nama}
+                      onChange={(e) => updatePilihanHarga(i, 'nama', e.target.value)}
+                      className={inputClass + ' w-40'}
+                    />
+                    <div className="w-48">
+                      <RupiahInput
+                        aria-label={`Harga pilihan ${i + 1}`}
+                        value={p.harga}
+                        onChange={(v) => updatePilihanHarga(i, 'harga', v)}
+                        placeholder="0"
+                        className={inputClass}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePilihanHarga(i)}
+                      className="text-red-500 hover:text-red-700 text-sm font-medium px-2"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="border-t pt-4">
@@ -304,6 +393,9 @@ export default function PaketList() {
                   Keberangkatan
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Harga
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Aksi
                 </th>
               </tr>
@@ -337,6 +429,14 @@ export default function PaketList() {
                           </span>
                         ))
                       : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-700">
+                    {p.harga ? formatRupiah(p.harga) : !p.pilihan_harga?.length && <span className="text-amber-600">Belum diatur</span>}
+                    {p.pilihan_harga?.map((o) => (
+                      <div key={o.nama} className="text-xs text-gray-500">
+                        {o.nama}: {formatRupiah(o.harga)}
+                      </div>
+                    ))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
                     <button

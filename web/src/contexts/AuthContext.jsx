@@ -1,20 +1,16 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-
-const AuthContext = createContext(null);
+import { useState, useEffect } from 'react';
+import { AuthContext } from './auth';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Loading only while a token is being verified; set from event handlers
+  // (login/logout) rather than synchronously inside the effect.
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
+    if (!token) return undefined;
+    let cancelled = false;
     fetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -22,13 +18,21 @@ export function AuthProvider({ children }) {
         if (!res.ok) throw new Error('Invalid token');
         return res.json();
       })
-      .then(setUser)
+      .then((u) => {
+        if (!cancelled) setUser(u);
+      })
       .catch(() => {
+        if (cancelled) return;
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const login = async (username, password) => {
@@ -45,6 +49,7 @@ export function AuthProvider({ children }) {
 
     const data = await res.json();
     localStorage.setItem('token', data.token);
+    setLoading(true);
     setToken(data.token);
   };
 
@@ -52,6 +57,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setLoading(false);
   };
 
   return (
@@ -59,10 +65,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }

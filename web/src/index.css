@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+@layer base {
+  /*
+   * Native <select> (esp. Safari/macOS) ignores padding, so it renders shorter
+   * than <input> with the same classes. Drop the native look and draw our own
+   * chevron so selects take the same height as inputs.
+   */
+  select:not([multiple]):not([size]) {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    print-color-adjust: exact;
+  }
+}
+
+/* Unlayered so it beats utilities like px-3 and text never runs under the chevron. */
+select:not([multiple]):not([size]) {
+  padding-right: 2.5rem;
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/auth';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,6 +67,12 @@ export default function Login() {
             {loading ? 'Memproses...' : 'Login'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
+          <Link to="/" className="font-medium text-emerald-700 hover:underline">
+            ← Kembali ke beranda
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type AdminRepository struct {
@@ -82,22 +81,27 @@ func (r *AdminRepository) Delete(ctx context.Context, id primitive.ObjectID) err
 	return err
 }
 
-func (r *AdminRepository) EnsureSuperAdmin(ctx context.Context, username, hashedPassword string) error {
-	now := time.Now()
-	filter := bson.M{"role": "super"}
-	update := bson.M{
-		"$set": bson.M{
-			"username":   username,
-			"password":   hashedPassword,
-			"role":       "super",
-			"updated_at": now,
-		},
-		"$setOnInsert": bson.M{
-			"created_at": now,
-		},
+// EnsureSuperAdmin creates the super admin if none exists. An existing super
+// admin is left untouched (its password is managed in the app), unless
+// resetPassword is true, which sets username and password again (recovery).
+// It reports whether the account was created or reset.
+func (r *AdminRepository) EnsureSuperAdmin(ctx context.Context, username, hashedPassword string, resetPassword bool) (created, reset bool, err error) {
+	var existing model.Admin
+	err = r.collection.FindOne(ctx, bson.M{"role": "super"}).Decode(&existing)
+	switch {
+	case err == mongo.ErrNoDocuments:
+		now := time.Now()
+		_, err = r.collection.InsertOne(ctx, model.Admin{
+			Username: username, Password: hashedPassword, Role: "super", CreatedAt: now, UpdatedAt: now,
+		})
+		return err == nil, false, err
+	case err != nil:
+		return false, false, err
+	case resetPassword:
+		_, err = r.collection.UpdateOne(ctx, bson.M{"_id": existing.ID}, bson.M{"$set": bson.M{
+			"username": username, "password": hashedPassword, "updated_at": time.Now(),
+		}})
+		return false, err == nil, err
 	}
-	opts := &options.UpdateOptions{}
-	opts.SetUpsert(true)
-	_, err := r.collection.UpdateOne(ctx, filter, update, opts)
-	return err
+	return false, false, nil
 }

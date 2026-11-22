@@ -32,3 +32,6 @@ vendor/
 # Web
 web/node_modules/
 web/dist/
+
+# Backups
+backups/

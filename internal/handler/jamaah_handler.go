@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"syairullahhajiumroh/internal/middleware"
 	"syairullahhajiumroh/internal/model"
 	"syairullahhajiumroh/internal/repository"
 
@@ -45,10 +46,11 @@ type JamaahHandler struct {
 	paketRepo *repository.PaketRepository
 	auditRepo *repository.AuditLogRepository
 	uploadDir string
+	secret    string // signs document links and checks admin tokens
 }
 
-func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, auditRepo *repository.AuditLogRepository, uploadDir string) *JamaahHandler {
-	return &JamaahHandler{repo: repo, paketRepo: paketRepo, auditRepo: auditRepo, uploadDir: uploadDir}
+func NewJamaahHandler(repo *repository.JamaahRepository, paketRepo *repository.PaketRepository, auditRepo *repository.AuditLogRepository, uploadDir, secret string) *JamaahHandler {
+	return &JamaahHandler{repo: repo, paketRepo: paketRepo, auditRepo: auditRepo, uploadDir: uploadDir, secret: secret}
 }
 
 // populatePaket populates the transient Paket field for a slice of jamaah.
@@ -82,6 +84,7 @@ func (h *JamaahHandler) populatePaket(c *gin.Context, list []model.Jamaah) {
 		if p, ok := paketMap[list[i].PaketID]; ok {
 			list[i].Paket = p
 		}
+		list[i].Tagihan = model.HitungTagihan(&list[i], list[i].Paket)
 	}
 }
 
@@ -110,6 +113,10 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
 		return
 	}
+	if msg := validateHargaJamaah(&jamaah, paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 
 	// Validate departure date for pakets with departure options
 	if len(paket.TanggalKeberangkatan) > 0 {
@@ -129,6 +136,8 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 			return
 		}
 	}
+
+	applyStatusOtomatis(&jamaah, paket)
 
 	if err := h.repo.Create(c.Request.Context(), &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -230,6 +239,8 @@ func (h *JamaahHandler) FindByID(c *gin.Context) {
 			jamaah.Paket = paket
 		}
 	}
+	jamaah.Tagihan = model.HitungTagihan(jamaah, jamaah.Paket)
+	jamaah.DokumenAkses = newDokumenAkses(h.secret, jamaah.ID)
 
 	c.JSON(http.StatusOK, jamaah)
 }
@@ -277,6 +288,10 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "paket_id tidak valid"})
 		return
 	}
+	if msg := validateHargaJamaah(&jamaah, paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 
 	// Validate departure date for pakets with departure options
 	if len(paket.TanggalKeberangkatan) > 0 {
@@ -296,6 +311,21 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 			return
 		}
 	}
+
+	// The edit form never sends uploaded documents or creation time, and the
+	// repository $sets the whole struct. Keep the stored values so an edit
+	// doesn't wipe them (documents are managed via the upload endpoints).
+	jamaah.FotoKTP = oldJamaah.FotoKTP
+	jamaah.FotoKK = oldJamaah.FotoKK
+	jamaah.FotoPaspor = oldJamaah.FotoPaspor
+	jamaah.Pasfoto = oldJamaah.Pasfoto
+	jamaah.FotoKoperDiterima = oldJamaah.FotoKoperDiterima
+	jamaah.BuktiDP = oldJamaah.BuktiDP
+	jamaah.BuktiPelunasan = oldJamaah.BuktiPelunasan
+	jamaah.CreatedAt = oldJamaah.CreatedAt
+	jamaah.DeletedAt = oldJamaah.DeletedAt
+	// Receipts are known now, so the status can be derived (priced paket only).
+	applyStatusOtomatis(&jamaah, paket)
 
 	if err := h.repo.Update(c.Request.Context(), id, &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -457,6 +487,9 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 	}
 
 	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "upload", fmt.Sprintf("Upload dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
+	if multiDocTypes[docType] {
+		h.syncStatusAfterReceiptChange(c, id)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil diupload", docType), "path": relativePath})
 }
@@ -477,6 +510,14 @@ func (h *JamaahHandler) GetDocument(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id tidak valid"})
+		return
+	}
+
+	// Documents (KTP, KK, paspor, receipts...) are private: require either a
+	// signed link from the admin detail page or an admin token.
+	if !validDokumenAkses(h.secret, id, c.Query("exp"), c.Query("sig")) &&
+		!middleware.ValidBearerToken(h.secret, c.GetHeader("Authorization")) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "akses dokumen tidak valid atau sudah kedaluwarsa, muat ulang halaman"})
 		return
 	}
 
@@ -596,8 +637,45 @@ func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
 	}
 
 	logAudit(c, h.auditRepo, "jamaah", id, jamaah.Nama, "delete_document", fmt.Sprintf("Menghapus dokumen %s untuk jamaah: %s", docType, jamaah.Nama))
+	h.syncStatusAfterReceiptChange(c, id)
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
+}
+
+// syncStatusAfterReceiptChange reloads the jamaah (with its new receipts) and
+// updates the payment status if the paket has a price.
+func (h *JamaahHandler) syncStatusAfterReceiptChange(c *gin.Context, id primitive.ObjectID) {
+	j, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		return
+	}
+	p, err := h.paketRepo.FindByID(c.Request.Context(), j.PaketID)
+	if err != nil {
+		return
+	}
+	syncStatusPembayaran(c, h.repo, h.auditRepo, j, p)
+}
+
+// validateHargaJamaah checks the chosen price option and discount against
+// the paket. It returns an error message, or "" when valid.
+func validateHargaJamaah(j *model.Jamaah, paket *model.Paket) string {
+	j.PilihanHarga = strings.TrimSpace(j.PilihanHarga)
+	j.KeteranganPotongan = strings.TrimSpace(j.KeteranganPotongan)
+	if j.PilihanHarga != "" {
+		if _, ok := paket.FindPilihanHarga(j.PilihanHarga); !ok {
+			return fmt.Sprintf("pilihan harga %q tidak ada di %s", j.PilihanHarga, paket.Label)
+		}
+	}
+	if j.Potongan < 0 {
+		return "potongan tidak boleh negatif"
+	}
+	if dasar, _ := model.HargaDasarJamaah(j, paket); j.Potongan > 0 && dasar > 0 && j.Potongan > dasar {
+		return fmt.Sprintf("potongan (%s) melebihi harga (%s)", formatRupiah(j.Potongan), formatRupiah(dasar))
+	}
+	if j.Potongan == 0 {
+		j.KeteranganPotongan = ""
+	}
+	return ""
 }
 
 func validDocTypesList() string {
@@ -612,6 +690,7 @@ func (h *JamaahHandler) RegisterRoutes(r *gin.RouterGroup) {
 	jamaah := r.Group("/jamaah")
 	{
 		jamaah.POST("", h.Create)
+		jamaah.PUT("/bulk-manasik", h.BulkManasik)
 		jamaah.GET("", h.FindAll)
 		jamaah.GET("/:id", h.FindByID)
 		jamaah.PUT("/:id", h.Update)

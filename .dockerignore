@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+!.env.example
+.claude
+.vscode
+.idea
+**/.DS_Store
+bin/
+uploads/
+web/node_modules/
+web/dist/
+docker-compose.yml
+Dockerfile
+Caddyfile
+backups/
+scripts/

@@ -1,0 +1,10 @@
+# DOMAIN comes from docker-compose (e.g. haji.example.com). Caddy obtains and
+# renews the HTTPS certificate automatically.
+{$DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy app:8080
+}

@@ -49,6 +49,14 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
 	}
+	if paket.Harga < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
+		return
+	}
+	if msg := normalizePilihanHarga(&paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 	for i, tk := range paket.TanggalKeberangkatan {
 		if strings.TrimSpace(tk.Nama) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
@@ -166,9 +174,43 @@ func (h *PaketHandler) Update(c *gin.Context) {
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
 	}
+	if paket.Harga < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
+		return
+	}
+	if msg := normalizePilihanHarga(&paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 	for i, tk := range paket.TanggalKeberangkatan {
 		if strings.TrimSpace(tk.Nama) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("tanggal keberangkatan ke-%d: nama harus diisi", i+1)})
+			return
+		}
+	}
+
+	// Don't silently change the price of jamaah who use an option being removed/renamed.
+	var removed []string
+	for _, opt := range oldPaket.PilihanHarga {
+		if _, ok := paket.FindPilihanHarga(opt.Nama); !ok {
+			removed = append(removed, opt.Nama)
+		}
+	}
+	if len(removed) > 0 {
+		inUse, err := h.jamaahRepo.CountUsingPilihanHarga(c.Request.Context(), id, removed)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		var msgs []string
+		for _, name := range removed {
+			if n := inUse[name]; n > 0 {
+				msgs = append(msgs, fmt.Sprintf("%q dipakai %d jamaah", name, n))
+			}
+		}
+		if len(msgs) > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "pilihan harga tidak bisa dihapus atau diganti namanya karena masih dipakai: " +
+				strings.Join(msgs, ", ") + ". Pindahkan jamaah tersebut ke pilihan lain terlebih dahulu."})
 			return
 		}
 	}
@@ -180,6 +222,15 @@ func (h *PaketHandler) Update(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Price may have changed: recompute payment status of its jamaah.
+	if updated, err := h.repo.FindByID(c.Request.Context(), id); err == nil {
+		if list, err := h.jamaahRepo.FindActive(c.Request.Context(), &id); err == nil {
+			for i := range list {
+				syncStatusPembayaran(c, h.jamaahRepo, h.auditRepo, &list[i], updated)
+			}
+		}
 	}
 
 	// Sync jamaah departure dates
@@ -229,6 +280,27 @@ func (h *PaketHandler) Delete(c *gin.Context) {
 	logAudit(c, h.auditRepo, "paket", id, paket.Label, "delete", fmt.Sprintf("Menghapus paket: %s", paket.Label))
 
 	c.JSON(http.StatusOK, gin.H{"message": "paket berhasil dihapus"})
+}
+
+// normalizePilihanHarga trims names and validates price options.
+func normalizePilihanHarga(p *model.Paket) string {
+	seen := map[string]bool{}
+	for i := range p.PilihanHarga {
+		opt := &p.PilihanHarga[i]
+		opt.Nama = strings.TrimSpace(opt.Nama)
+		if opt.Nama == "" {
+			return fmt.Sprintf("pilihan harga ke-%d: nama harus diisi", i+1)
+		}
+		key := strings.ToLower(opt.Nama)
+		if seen[key] {
+			return fmt.Sprintf("pilihan harga %q duplikat", opt.Nama)
+		}
+		seen[key] = true
+		if opt.Harga <= 0 {
+			return fmt.Sprintf("pilihan harga %q: harga harus lebih dari 0", opt.Nama)
+		}
+	}
+	return ""
 }
 
 func (h *PaketHandler) RegisterRoutes(r *gin.RouterGroup) {
