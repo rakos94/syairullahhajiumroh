@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createJamaah, fetchJamaahById, updateJamaah, fetchPaketList } from '../api';
 import RupiahInput from '../components/RupiahInput';
+import TanggalInput from '../components/TanggalInput';
 import { formatRupiah } from '../utils/format';
 
 const emptyForm = {
@@ -43,7 +44,8 @@ function isoToDateInput(dateStr) {
 function dateInputToIso(val) {
   if (!val) return null;
   const date = new Date(`${val}T00:00:00Z`);
-  if (isNaN(date.getTime())) return null;
+  // JS Date rolls invalid days over (1990-02-31 -> 1990-03-03); reject instead
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== val) return null;
   return date.toISOString();
 }
 
@@ -258,12 +260,9 @@ export default function JamaahForm() {
 
             <div>
               <label className={labelClass}>Tanggal Lahir</label>
-              <input
-                type="date"
-                name="tanggal_lahir"
+              <TanggalInput
                 value={form.tanggal_lahir}
-                onChange={handleChange}
-                className={inputClass}
+                onChange={(v) => setForm((prev) => ({ ...prev, tanggal_lahir: v }))}
               />
             </div>
 
