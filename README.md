@@ -4,7 +4,7 @@ Aplikasi manajemen data jamaah haji dan umroh. Backend menggunakan Go (Gin) + Mo
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.25+
 - Node.js 18+
 - Docker & Docker Compose
 
@@ -161,76 +161,80 @@ Vite dev server runs on port 5173 with API proxy to `localhost:8080`.
 
 ```
 cmd/
-  main.go                      # Entry point
-  seed/main.go                 # Seed dummy data
+  main.go                  # Entry point: wiring, routes, cek keamanan saat start
+  seed/main.go             # Seed data contoh (development)
 internal/
-  config/config.go             # Environment configuration
-  model/
-    jamaah.go                  # Jamaah data model
-    paket.go                   # Paket data model (haji/umroh + tahun/bulan)
-  repository/
-    jamaah_repository.go       # Jamaah MongoDB repository
-    paket_repository.go        # Paket MongoDB repository
-  handler/
-    jamaah_handler.go          # Jamaah HTTP handlers (REST API)
-    paket_handler.go           # Paket HTTP handlers (REST API)
-  migration/migration.go       # Database migrations
-web/                           # React frontend (Vite + Tailwind)
-  src/
-    api.js                     # API client
-    pages/                     # JamaahList, JamaahForm, JamaahDetail
-    components/                # Layout, StatusBadge
-static.go                      # go:embed for web/dist
-docs/                          # Swagger documentation
+  config/                  # Konfigurasi dari environment (.env)
+  model/                   # Struct data + logika domain (perhitungan tagihan, status otomatis)
+  repository/              # Akses MongoDB (satu file per koleksi)
+  handler/                 # HTTP handler (REST API), audit log, link dokumen bertanda tangan, token QR manasik
+  middleware/              # JWT auth, rate limit, security headers
+  migration/migration.go   # Migrasi database berurutan (001–009)
+web/src/                   # React frontend (Vite + Tailwind)
+  api.js                   # Semua pemanggilan API
+  pages/                   # Satu file per halaman
+  components/              # Komponen bersama (Layout, RupiahInput, NominalDialog, ManasikQr, ...)
+  utils/format.js          # formatRupiah, terbilang
+scripts/backup.sh          # Backup/restore MongoDB + upload
+static.go                  # go:embed web/dist
+docs/                      # Swagger (generated: swag init -g cmd/main.go)
 ```
 
 ## API Endpoints
 
-### Paket
+Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint butuh header
+`Authorization: Bearer <token>`. Detail lengkap di Swagger.
 
-| Method | Endpoint | Deskripsi |
-|--------|----------|-----------|
-| GET | /api/paket | List paket (filter: `?tipe=haji\|umroh`) |
-| POST | /api/paket | Tambah paket baru |
-| GET | /api/paket/:id | Detail paket |
+| Area | Endpoint |
+|------|----------|
+| Health (publik) | `GET /health` |
+| Auth | `POST /auth/login` (publik, rate limit), `GET /auth/me` |
+| Admin (super admin) | `GET/POST /admin`, `PUT/DELETE /admin/:id` |
+| Paket | `GET/POST /paket` (`?tipe=haji\|umroh`), `GET/PUT/DELETE /paket/:id` |
+| Jamaah | `GET/POST /jamaah` (`?paket_id&search&status_pembayaran&kelengkapan&page&limit`), `GET/PUT/DELETE /jamaah/:id`, `PUT /jamaah/bulk-manasik` |
+| Dokumen | `POST /jamaah/:id/upload/:docType`, `DELETE /jamaah/:id/dokumen/:docType`, `GET /jamaah/:id/dokumen/:docType` (admin atau link bertanda tangan) |
+| Tagihan | `GET /tagihan`, `GET /tagihan/export` (`?paket_id&belum_lunas=true`) |
+| Manasik | `GET /manasik/jamaah`, `GET /manasik/export`, `POST /manasik/import`, `GET/POST /manasik/sesi`, `GET/DELETE /manasik/sesi/:id`, `POST /manasik/sesi/:id/hadir`, `DELETE /manasik/sesi/:id/hadir/:jamaahId` |
+| Pengumuman | `GET/POST /pengumuman`, `PUT/DELETE /pengumuman/:id`; `GET /portal/pengumuman` (publik) |
+| Portal jamaah (publik) | `POST /portal/cek-kamar` (rate limit) |
+| Lainnya | `GET /statistics`, `GET /audit-logs`, `GET /audit-logs/:entityType/:entityId` |
 
-### Jamaah
-
-| Method | Endpoint | Deskripsi |
-|--------|----------|-----------|
-| GET | /api/jamaah | List jamaah (filter: `?paket_id=...&page=1&limit=10`) |
-| POST | /api/jamaah | Tambah jamaah baru |
-| GET | /api/jamaah/:id | Detail jamaah |
-| PUT | /api/jamaah/:id | Update jamaah |
-| DELETE | /api/jamaah/:id | Hapus jamaah (soft delete) |
-| POST | /api/jamaah/:id/upload/:docType | Upload dokumen (ktp, kk, paspor, pasfoto, koper_diterima) |
-| GET | /api/jamaah/:id/dokumen/:docType | Download dokumen |
+`docType`: `foto_ktp`, `foto_kk`, `foto_paspor`, `pasfoto`, `foto_koper_diterima`, `bukti_dp`, `bukti_pelunasan`
+(bukti bisa lebih dari satu file, dipilih dengan `?index=`).
 
 ## Data Model
 
 ### Paket
 
-- Tipe (haji/umroh)
-- Tahun (contoh: 2026)
-- Bulan (1-12, hanya untuk umroh)
-- Label otomatis: "Haji 2026", "Umroh April 2026"
+- Tipe (haji/umroh), Tahun, Bulan (hanya umroh) → label otomatis: "Haji 2026", "Umroh April 2026"
+- Tanggal keberangkatan (bisa lebih dari satu)
+- Harga, atau beberapa pilihan harga (nama + harga)
 
 ### Jamaah
 
-- Nama (auto title case), NIK, Nomor Paspor, Alamat, No HP
-- Tanggal Lahir, Jenis Kelamin
-- Paket (referensi ke data paket), Tanggal Keberangkatan
-- Status Pembayaran (belum_bayar, dp, lunas)
-- No Rekening Haji, Tipe Bank
-- Batik Nasional Sudah Dijahit, Batik KBIH Sudah Diterima, Koper Sudah Diterima
+- Identitas: Nama (auto title case), NIK (unik), Nomor Paspor, Alamat, No HP, Tempat/Tanggal Lahir, Jenis Kelamin
+- Paket, Tanggal Keberangkatan, Pilihan Harga, Potongan (+ keterangan)
+- Pembayaran: Status (belum_bayar / dp / lunas — otomatis dari bukti jika paket punya harga), Bukti DP & Pelunasan (file + nominal), No Rekening Haji, Tipe Bank
+- Perlengkapan: Batik Nasional, Batik KBIH, Koper
+- Manasik: Gedung, Kamar, Rombongan, Regu, Ketua Regu/Rombongan
 - Dokumen: KTP, KK, Paspor, Pas Foto, Foto Koper Diterima
+
+### Lainnya
+
+- **Admin** — role `super` (kelola admin) atau `admin`
+- **Sesi Manasik** + kehadiran (scan QR jamaah)
+- **Pengumuman** — tampil di halaman publik
+- **Audit Log** — riwayat semua perubahan (siapa, kapan, field lama/baru)
 
 ## Fitur
 
-- Server-side pagination pada daftar jamaah
+- Login admin (JWT) dengan manajemen admin oleh super admin
+- Daftar jamaah dengan pagination server-side, pencarian, dan filter (paket, status, kelengkapan dokumen)
 - Soft delete (data tidak dihapus permanen)
-- Auto capitalize nama jamaah
-- Format tanggal Indonesia (dd/mm/yyyy)
-- Preview gambar dokumen dengan lightbox
-- Filter jamaah berdasarkan paket
-- Single binary deployment (Go embed React build)
+- Upload dokumen dengan kompresi gambar di browser, preview lightbox, link dokumen kedaluwarsa
+- Tagihan per jamaah (harga, potongan, DP, pelunasan, sisa) dengan export
+- Manasik: pembagian kamar/regu (import/export), sesi, absensi via scan QR
+- Portal jamaah publik: Cek Kamar + QR absensi, pengumuman
+- Dashboard statistik dan riwayat perubahan (audit log)
+- Format Rupiah + terbilang, tanggal Indonesia (dd/mm/yyyy), tombol salin (NIK, dll.)
+- Single binary deployment (Go embed React build), backup harian otomatis
