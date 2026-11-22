@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cekKamarManasik } from '../api';
 import ManasikQr from './ManasikQr';
+import TanggalInput from './TanggalInput';
 
 function formatDate(dateStr) {
   if (!dateStr || dateStr === '0001-01-01T00:00:00Z') return '';
@@ -150,14 +151,7 @@ export default function CekKamarCard() {
               <label htmlFor="tanggal_lahir" className="block text-sm font-medium text-gray-700 mb-1">
                 Tanggal Lahir
               </label>
-              <input
-                id="tanggal_lahir"
-                type="date"
-                value={tanggalLahir}
-                onChange={(e) => setTanggalLahir(e.target.value)}
-                required
-                className={inputClass}
-              />
+              <TanggalInput value={tanggalLahir} onChange={setTanggalLahir} required />
             </div>
             <button
               type="submit"

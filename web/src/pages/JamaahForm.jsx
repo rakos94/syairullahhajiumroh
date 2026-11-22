@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createJamaah, fetchJamaahById, updateJamaah, fetchPaketList } from '../api';
 import RupiahInput from '../components/RupiahInput';
+import TanggalInput from '../components/TanggalInput';
 import { formatRupiah } from '../utils/format';
 
 const emptyForm = {
@@ -258,12 +259,9 @@ export default function JamaahForm() {
 
             <div>
               <label className={labelClass}>Tanggal Lahir</label>
-              <input
-                type="date"
-                name="tanggal_lahir"
+              <TanggalInput
                 value={form.tanggal_lahir}
-                onChange={handleChange}
-                className={inputClass}
+                onChange={(v) => setForm((prev) => ({ ...prev, tanggal_lahir: v }))}
               />
             </div>
 
