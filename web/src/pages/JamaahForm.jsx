@@ -44,7 +44,8 @@ function isoToDateInput(dateStr) {
 function dateInputToIso(val) {
   if (!val) return null;
   const date = new Date(`${val}T00:00:00Z`);
-  if (isNaN(date.getTime())) return null;
+  // JS Date rolls invalid days over (1990-02-31 -> 1990-03-03); reject instead
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== val) return null;
   return date.toISOString();
 }
 
