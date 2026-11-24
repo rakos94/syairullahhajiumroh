@@ -150,6 +150,12 @@ export default function JamaahDetail() {
           ['Peran', [jamaah.ketua_rombongan && 'Ketua Rombongan', jamaah.ketua_regu && 'Ketua Regu'].filter(Boolean).join(', ') || '-'],
         ]
       : []),
+    ...(jamaah.paket?.tipe === 'umroh'
+      ? [
+          ['Hotel Mekkah', [jamaah.paket.hotel_mekkah, jamaah.kamar_hotel_mekkah && `Kamar ${jamaah.kamar_hotel_mekkah}`].filter(Boolean).join(' · ') || '-'],
+          ['Hotel Madinah', [jamaah.paket.hotel_madinah, jamaah.kamar_hotel_madinah && `Kamar ${jamaah.kamar_hotel_madinah}`].filter(Boolean).join(' · ') || '-'],
+        ]
+      : []),
     ['Keterangan', jamaah.keterangan || '-'],
   ];
 

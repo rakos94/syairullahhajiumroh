@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"syairullahhajiumroh/internal/model"
@@ -48,6 +49,10 @@ func (h *PaketHandler) Create(c *gin.Context) {
 	}
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
+	}
+	if msg := normalizeHotel(&paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
 	}
 	if paket.Harga < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
@@ -174,6 +179,10 @@ func (h *PaketHandler) Update(c *gin.Context) {
 	if paket.Tipe == "haji" {
 		paket.Bulan = 0
 	}
+	if msg := normalizeHotel(&paket); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 	if paket.Harga < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "harga tidak boleh negatif"})
 		return
@@ -283,6 +292,45 @@ func (h *PaketHandler) Delete(c *gin.Context) {
 }
 
 // normalizePilihanHarga trims names and validates price options.
+// normalizeHotel trims hotel names and checks the Maps links; hotels are
+// only for umroh pakets. It returns an error message, or "" when valid.
+func normalizeHotel(p *model.Paket) string {
+	p.HotelMekkah = strings.TrimSpace(p.HotelMekkah)
+	p.HotelMadinah = strings.TrimSpace(p.HotelMadinah)
+	p.MapsHotelMekkah = strings.TrimSpace(p.MapsHotelMekkah)
+	p.MapsHotelMadinah = strings.TrimSpace(p.MapsHotelMadinah)
+	if p.Tipe != "umroh" {
+		p.HotelMekkah, p.HotelMadinah, p.MapsHotelMekkah, p.MapsHotelMadinah = "", "", "", ""
+		return ""
+	}
+	if p.MapsHotelMekkah != "" && !isGoogleMapsURL(p.MapsHotelMekkah) {
+		return "link Google Maps hotel Mekkah tidak valid (salin dari tombol Bagikan di Google Maps)"
+	}
+	if p.MapsHotelMadinah != "" && !isGoogleMapsURL(p.MapsHotelMadinah) {
+		return "link Google Maps hotel Madinah tidak valid (salin dari tombol Bagikan di Google Maps)"
+	}
+	return ""
+}
+
+// isGoogleMapsURL accepts only https links to Google Maps; these links are
+// shown on the public Cek Kamar page.
+func isGoogleMapsURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.User != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	switch {
+	case host == "maps.app.goo.gl", host == "maps.google.com", strings.HasPrefix(host, "maps.google."):
+		return true
+	case host == "goo.gl":
+		return strings.HasPrefix(u.Path, "/maps")
+	case host == "google.com", host == "www.google.com", strings.HasPrefix(host, "www.google."):
+		return strings.HasPrefix(u.Path, "/maps")
+	}
+	return false
+}
+
 func normalizePilihanHarga(p *model.Paket) string {
 	seen := map[string]bool{}
 	for i := range p.PilihanHarga {

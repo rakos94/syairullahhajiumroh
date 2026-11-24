@@ -34,6 +34,13 @@ type Paket struct {
 	Harga float64 `json:"harga" bson:"harga"`
 	// PilihanHarga are optional price options; a jamaah may pick one instead of Harga.
 	PilihanHarga []PilihanHarga `json:"pilihan_harga,omitempty" bson:"pilihan_harga,omitempty"`
+	// HotelMekkah / HotelMadinah: hotel names for umroh pakets (shown to
+	// jamaah in Cek Kamar); room numbers are per jamaah.
+	HotelMekkah  string `json:"hotel_mekkah,omitempty" bson:"hotel_mekkah,omitempty"`
+	HotelMadinah string `json:"hotel_madinah,omitempty" bson:"hotel_madinah,omitempty"`
+	// Optional Google Maps links for the hotels (validated to be Google Maps).
+	MapsHotelMekkah  string `json:"maps_hotel_mekkah,omitempty" bson:"maps_hotel_mekkah,omitempty"`
+	MapsHotelMadinah string `json:"maps_hotel_madinah,omitempty" bson:"maps_hotel_madinah,omitempty"`
 	Label                string                      `json:"label" bson:"-"`
 	CreatedAt            time.Time                   `json:"created_at" bson:"created_at"`
 	UpdatedAt            time.Time                   `json:"updated_at" bson:"updated_at"`

@@ -81,26 +81,68 @@ function KontakKetua({ label, list }) {
   );
 }
 
+function keberangkatanText(item) {
+  const k = item.tanggal_keberangkatan;
+  return k ? [k.nama, formatDate(k.tanggal)].filter(Boolean).join(' - ') : '';
+}
+
+// Link set by the admin (validated server-side to be Google Maps), else a
+// Maps search for the hotel name in that city.
+function mapsUrl(hotel, kota, link) {
+  if (link) return link;
+  if (!hotel) return '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel} ${kota}`)}`;
+}
+
+// Umroh hotel in one city: hotel name (per paket) + the jamaah's room.
+function HotelCard({ kota, hotel, kamar, maps }) {
+  const url = mapsUrl(hotel, kota, maps);
+  return (
+    <div className="flex flex-col rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
+      <p className="text-xs uppercase tracking-wide text-emerald-700">Hotel {kota}</p>
+      <p className="text-sm font-semibold text-emerald-900 mt-1 break-words">{hotel || 'Belum ditentukan'}</p>
+      <p className="text-xs uppercase tracking-wide text-emerald-700 mt-3">Kamar</p>
+      <p className="text-2xl font-bold text-emerald-900 break-words">{kamar || '-'}</p>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center justify-center gap-1 rounded-md bg-white border border-emerald-300 px-2 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+        >
+          <span aria-hidden="true">📍</span> Buka di Google Maps
+        </a>
+      )}
+    </div>
+  );
+}
+
 // One registration (paket) of the jamaah.
-function PaketResult({ item, nama, showLabel }) {
-  const keberangkatan = item.tanggal_keberangkatan;
-  const keberangkatanText = keberangkatan
-    ? [keberangkatan.nama, formatDate(keberangkatan.tanggal)].filter(Boolean).join(' - ')
-    : '';
+function PaketResult({ item, nama }) {
+  const keberangkatan = keberangkatanText(item);
   const sudahDitentukan = item.gedung_manasik || item.kamar_manasik;
   // Manasik (gedung/kamar/rombongan) is only for haji.
   const isHaji = item.tipe_paket === 'haji';
+  const isUmroh = item.tipe_paket === 'umroh';
+  const adaHotel = item.hotel_mekkah || item.hotel_madinah || item.kamar_hotel_mekkah || item.kamar_hotel_madinah;
 
   return (
     <div>
-      {item.paket && (
-        <p className={showLabel ? 'text-base font-semibold text-gray-900' : 'text-sm text-gray-600 mt-1'}>
-          {item.paket}
-        </p>
-      )}
-      {keberangkatanText && (
-        <p className="text-sm text-gray-600">Keberangkatan: {keberangkatanText}</p>
-      )}
+      {item.paket && <p className="text-sm text-gray-600 mt-1">{item.paket}</p>}
+      {keberangkatan && <p className="text-sm text-gray-600">Keberangkatan: {keberangkatan}</p>}
+
+      {isUmroh &&
+        (adaHotel ? (
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <HotelCard kota="Mekkah" hotel={item.hotel_mekkah} kamar={item.kamar_hotel_mekkah} maps={item.maps_hotel_mekkah} />
+            <HotelCard kota="Madinah" hotel={item.hotel_madinah} kamar={item.kamar_hotel_madinah} maps={item.maps_hotel_madinah} />
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+            Hotel dan kamar Anda di Mekkah dan Madinah belum ditentukan. Silakan cek kembali nanti
+            atau hubungi petugas.
+          </div>
+        ))}
 
       {isHaji &&
         (sudahDitentukan ? (
@@ -166,6 +208,8 @@ export default function CekKamarCard() {
   const [nik, setNik] = useState('');
   const [tanggalLahir, setTanggalLahir] = useState('');
   const [result, setResult] = useState(null);
+  // Index of the chosen paket when the NIK is registered in several.
+  const [pilihan, setPilihan] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -173,6 +217,7 @@ export default function CekKamarCard() {
     e.preventDefault();
     setError('');
     setResult(null);
+    setPilihan(null);
     setLoading(true);
     try {
       setResult(await cekKamarManasik(nik.trim(), tanggalLahir));
@@ -185,6 +230,7 @@ export default function CekKamarCard() {
 
   const reset = () => {
     setResult(null);
+    setPilihan(null);
     setNik('');
     setTanggalLahir('');
   };
@@ -246,20 +292,46 @@ export default function CekKamarCard() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-sm text-gray-500">Assalamu'alaikum,</p>
           <p className="text-xl font-semibold text-gray-900">{result.nama}</p>
-          {banyakPaket && (
-            <p className="text-sm text-gray-600 mt-1">Anda terdaftar di {daftarPaket.length} paket.</p>
-          )}
-
-          <div className={banyakPaket ? 'mt-4 space-y-4' : ''}>
-            {daftarPaket.map((item, idx) => (
-              <div
-                key={`${item.paket}-${idx}`}
-                className={banyakPaket ? 'rounded-lg border border-gray-200 p-4' : ''}
-              >
-                <PaketResult item={item} nama={result.nama} showLabel={banyakPaket} />
+          {banyakPaket && pilihan === null ? (
+            <div className="mt-4">
+              <p className="text-sm text-gray-600">
+                Anda terdaftar di {daftarPaket.length} paket. Pilih paket yang ingin dilihat:
+              </p>
+              <div className="mt-3 space-y-2">
+                {daftarPaket.map((item, idx) => (
+                  <button
+                    key={`${item.paket}-${idx}`}
+                    type="button"
+                    onClick={() => setPilihan(idx)}
+                    className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-300 px-4 py-3 text-left hover:border-emerald-500 hover:bg-emerald-50"
+                  >
+                    <span>
+                      <span className="block font-semibold text-gray-900">{item.paket || 'Paket'}</span>
+                      {keberangkatanText(item) && (
+                        <span className="block text-sm text-gray-600">
+                          Keberangkatan: {keberangkatanText(item)}
+                        </span>
+                      )}
+                    </span>
+                    <span aria-hidden="true" className="text-emerald-700 text-lg">›</span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <>
+              {banyakPaket && (
+                <button
+                  type="button"
+                  onClick={() => setPilihan(null)}
+                  className="mt-2 text-sm font-medium text-emerald-700 hover:underline"
+                >
+                  ‹ Pilih paket lain
+                </button>
+              )}
+              <PaketResult item={daftarPaket[pilihan ?? 0]} nama={result.nama} />
+            </>
+          )}
 
           <button
             onClick={reset}

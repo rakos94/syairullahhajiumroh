@@ -152,6 +152,8 @@ func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
 	diffField(&changes, "Batik Nasional Sudah Dijahit", formatBool(old.BatikNasionalSudahDijahit), formatBool(new.BatikNasionalSudahDijahit))
 	diffField(&changes, "Batik KBIH Sudah Diterima", formatBool(old.BatikKBIHSudahDiterima), formatBool(new.BatikKBIHSudahDiterima))
 	diffField(&changes, "Koper Sudah Diterima", formatBool(old.KoperSudahDiterima), formatBool(new.KoperSudahDiterima))
+	diffField(&changes, "Kamar Hotel Mekkah", old.KamarHotelMekkah, new.KamarHotelMekkah)
+	diffField(&changes, "Kamar Hotel Madinah", old.KamarHotelMadinah, new.KamarHotelMadinah)
 	diffField(&changes, "Seragam Umroh Sudah Diterima", formatBool(old.SeragamUmrohSudahDiterima), formatBool(new.SeragamUmrohSudahDiterima))
 	diffField(&changes, "Gedung Manasik", old.GedungManasik, new.GedungManasik)
 	diffField(&changes, "Kamar Manasik", old.KamarManasik, new.KamarManasik)
@@ -171,5 +173,9 @@ func diffPaket(old, new *model.Paket) []model.FieldChange {
 	diffField(&changes, "Bulan", fmt.Sprintf("%d", old.Bulan), fmt.Sprintf("%d", new.Bulan))
 	diffField(&changes, "Harga", formatRupiah(old.Harga), formatRupiah(new.Harga))
 	diffField(&changes, "Pilihan Harga", formatPilihanHarga(old.PilihanHarga), formatPilihanHarga(new.PilihanHarga))
+	diffField(&changes, "Hotel Mekkah", old.HotelMekkah, new.HotelMekkah)
+	diffField(&changes, "Hotel Madinah", old.HotelMadinah, new.HotelMadinah)
+	diffField(&changes, "Maps Hotel Mekkah", old.MapsHotelMekkah, new.MapsHotelMekkah)
+	diffField(&changes, "Maps Hotel Madinah", old.MapsHotelMadinah, new.MapsHotelMadinah)
 	return changes
 }

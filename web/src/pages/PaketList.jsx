@@ -18,7 +18,7 @@ const bulanOptions = [
   { value: 12, label: 'Desember' },
 ];
 
-const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0, harga: 0, pilihan_harga: [], tanggal_keberangkatan: [] };
+const emptyForm = { tipe: 'haji', tahun: new Date().getFullYear(), bulan: 0, harga: 0, pilihan_harga: [], tanggal_keberangkatan: [], hotel_mekkah: '', hotel_madinah: '', maps_hotel_mekkah: '', maps_hotel_madinah: '' };
 
 export default function PaketList() {
   const [paketList, setPaketList] = useState([]);
@@ -58,6 +58,10 @@ export default function PaketList() {
       tahun: paket.tahun,
       bulan: paket.bulan || 0,
       harga: paket.harga || 0,
+      hotel_mekkah: paket.hotel_mekkah || '',
+      hotel_madinah: paket.hotel_madinah || '',
+      maps_hotel_mekkah: paket.maps_hotel_mekkah || '',
+      maps_hotel_madinah: paket.maps_hotel_madinah || '',
       pilihan_harga: (paket.pilihan_harga || []).map((p) => ({ nama: p.nama, harga: p.harga })),
       tanggal_keberangkatan: (paket.tanggal_keberangkatan || []).map((tk) => ({
         nama: tk.nama,
@@ -88,6 +92,10 @@ export default function PaketList() {
       tahun: Number(form.tahun),
       bulan: form.tipe === 'umroh' ? Number(form.bulan) : 0,
       harga: Number(form.harga) || 0,
+      hotel_mekkah: form.tipe === 'umroh' ? form.hotel_mekkah.trim() : '',
+      hotel_madinah: form.tipe === 'umroh' ? form.hotel_madinah.trim() : '',
+      maps_hotel_mekkah: form.tipe === 'umroh' ? form.maps_hotel_mekkah.trim() : '',
+      maps_hotel_madinah: form.tipe === 'umroh' ? form.maps_hotel_madinah.trim() : '',
       pilihan_harga: form.pilihan_harga
         .filter((p) => p.nama.trim() || p.harga)
         .map((p) => ({ nama: p.nama.trim(), harga: Number(p.harga) || 0 })),
@@ -248,6 +256,46 @@ export default function PaketList() {
                 />
               </div>
             </div>
+            {form.tipe === 'umroh' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  ['mekkah', 'Mekkah'],
+                  ['madinah', 'Madinah'],
+                ].map(([key, kota]) => (
+                  <div key={key} className="space-y-2">
+                    <div>
+                      <label htmlFor={`hotel-${key}`} className="block text-sm font-medium text-gray-700 mb-1">
+                        Hotel {kota}
+                      </label>
+                      <input
+                        id={`hotel-${key}`}
+                        value={form[`hotel_${key}`]}
+                        onChange={(e) => setForm({ ...form, [`hotel_${key}`]: e.target.value })}
+                        placeholder="Nama hotel"
+                        className={`${inputClass} w-full`}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={`maps-${key}`} className="block text-xs font-medium text-gray-600 mb-1">
+                        Link Google Maps (opsional)
+                      </label>
+                      <input
+                        id={`maps-${key}`}
+                        type="url"
+                        value={form[`maps_hotel_${key}`]}
+                        onChange={(e) => setForm({ ...form, [`maps_hotel_${key}`]: e.target.value })}
+                        placeholder="https://maps.app.goo.gl/..."
+                        className={`${inputClass} w-full`}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <p className="sm:col-span-2 text-xs text-gray-500">
+                  Salin link dari tombol Bagikan di Google Maps. Jika dikosongkan, jamaah tetap bisa membuka
+                  Google Maps yang mencari nama hotel tersebut.
+                </p>
+              </div>
+            )}
             <p className="text-xs text-gray-500 -mt-2">
               Harga dipakai untuk menghitung sisa tagihan tiap jamaah (harga dikurangi bukti DP dan
               pelunasan yang diunggah). Kosongkan jika belum ditentukan.
@@ -408,6 +456,11 @@ export default function PaketList() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {p.label}
+                    {(p.hotel_mekkah || p.hotel_madinah) && (
+                      <div className="text-xs font-normal text-gray-500">
+                        {[p.hotel_mekkah && `Mekkah: ${p.hotel_mekkah}`, p.hotel_madinah && `Madinah: ${p.hotel_madinah}`].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                     {p.tipe}

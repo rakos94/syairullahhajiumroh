@@ -27,6 +27,8 @@ const emptyForm = {
   batik_kbih_sudah_diterima: false,
   koper_sudah_diterima: false,
   seragam_umroh_sudah_diterima: false,
+  kamar_hotel_mekkah: '',
+  kamar_hotel_madinah: '',
   gedung_manasik: '',
   kamar_manasik: '',
   rombongan: '',
@@ -114,6 +116,8 @@ export default function JamaahForm() {
             batik_kbih_sudah_diterima: data.batik_kbih_sudah_diterima || false,
             koper_sudah_diterima: data.koper_sudah_diterima || false,
             seragam_umroh_sudah_diterima: data.seragam_umroh_sudah_diterima || false,
+            kamar_hotel_mekkah: data.kamar_hotel_mekkah || '',
+            kamar_hotel_madinah: data.kamar_hotel_madinah || '',
             gedung_manasik: data.gedung_manasik || '',
             kamar_manasik: data.kamar_manasik || '',
             rombongan: data.rombongan || '',
@@ -527,6 +531,32 @@ export default function JamaahForm() {
             ) : null}
           </p>
         </Section>
+
+        {selectedPaket?.tipe === 'umroh' && (
+          <Section
+            title="Hotel"
+            description="Nama hotel diatur di menu Paket. Jamaah dapat melihat hotel dan nomor kamarnya di halaman Cek Kamar."
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                ['kamar_hotel_mekkah', 'Mekkah', selectedPaket.hotel_mekkah],
+                ['kamar_hotel_madinah', 'Madinah', selectedPaket.hotel_madinah],
+              ].map(([name, kota, hotel]) => (
+                <div key={name}>
+                  <label className={labelClass}>Kamar Hotel {kota}</label>
+                  <p className="text-xs text-gray-500 mb-1">{hotel || 'Hotel belum diatur di Paket'}</p>
+                  <input
+                    name={name}
+                    value={form[name]}
+                    onChange={handleChange}
+                    placeholder="Contoh: 512"
+                    className={inputClass}
+                  />
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         {selectedPaket?.tipe === 'haji' && (
           <Section

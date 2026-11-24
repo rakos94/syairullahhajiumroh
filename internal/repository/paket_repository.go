@@ -83,6 +83,10 @@ func (r *PaketRepository) Update(ctx context.Context, id primitive.ObjectID, pak
 			"tanggal_keberangkatan":   paket.TanggalKeberangkatan,
 			"harga":                   paket.Harga,
 			"pilihan_harga":           paket.PilihanHarga,
+			"hotel_mekkah":            paket.HotelMekkah,
+			"hotel_madinah":           paket.HotelMadinah,
+			"maps_hotel_mekkah":       paket.MapsHotelMekkah,
+			"maps_hotel_madinah":      paket.MapsHotelMadinah,
 			"updated_at":              paket.UpdatedAt,
 		}},
 	)
