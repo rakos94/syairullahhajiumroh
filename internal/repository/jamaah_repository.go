@@ -59,11 +59,29 @@ func (r *JamaahRepository) FindAll(ctx context.Context, paketID *primitive.Objec
 	if statusPembayaran != "" {
 		filter["status_pembayaran"] = statusPembayaran
 	}
+	// Batik is haji only and seragam umroh is umroh only; koper is both.
+	byTipe := func(tipe, field string) error {
+		ids, err := r.collection.Database().Collection("paket").Distinct(ctx, "_id", bson.M{"tipe": tipe})
+		if err != nil {
+			return err
+		}
+		filter["$and"] = bson.A{bson.M{"paket_id": bson.M{"$in": ids}}}
+		filter[field] = bson.M{"$ne": true}
+		return nil
+	}
 	switch kelengkapan {
 	case "batik_nasional_belum":
-		filter["batik_nasional_sudah_dijahit"] = bson.M{"$ne": true}
+		if err := byTipe("haji", "batik_nasional_sudah_dijahit"); err != nil {
+			return nil, 0, err
+		}
 	case "batik_kbih_belum":
-		filter["batik_kbih_sudah_diterima"] = bson.M{"$ne": true}
+		if err := byTipe("haji", "batik_kbih_sudah_diterima"); err != nil {
+			return nil, 0, err
+		}
+	case "seragam_umroh_belum":
+		if err := byTipe("umroh", "seragam_umroh_sudah_diterima"); err != nil {
+			return nil, 0, err
+		}
 	case "koper_belum":
 		filter["koper_sudah_diterima"] = bson.M{"$ne": true}
 	case "manasik_belum":
@@ -120,13 +138,93 @@ func (r *JamaahRepository) FindByID(ctx context.Context, id primitive.ObjectID) 
 	return &jamaah, nil
 }
 
-func (r *JamaahRepository) FindByNIK(ctx context.Context, nik string) (*model.Jamaah, error) {
-	var jamaah model.Jamaah
-	err := r.collection.FindOne(ctx, bson.M{"nik": nik, "deleted_at": nil}).Decode(&jamaah)
+// FindAllByNIK returns every active registration of a NIK (one per paket),
+// oldest first.
+func (r *JamaahRepository) FindAllByNIK(ctx context.Context, nik string) ([]model.Jamaah, error) {
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
+	cursor, err := r.collection.Find(ctx, bson.M{"nik": nik, "deleted_at": nil}, opts)
 	if err != nil {
 		return nil, err
 	}
-	return &jamaah, nil
+	defer cursor.Close(ctx)
+	results := []model.Jamaah{}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// IdentityDocFields are document fields that belong to the person rather
+// than to one registration; they are shared by all registrations of a NIK.
+var IdentityDocFields = []string{"foto_ktp", "foto_kk", "foto_paspor", "pasfoto"}
+
+// docFields are all single-file document fields (shared and per paket).
+var docFields = append([]string{"foto_koper_diterima"}, IdentityDocFields...)
+
+// SyncDataDiri copies the person's own data from j to the given records
+// (other registrations of the same person).
+func (r *JamaahRepository) SyncDataDiri(ctx context.Context, ids []primitive.ObjectID, j *model.Jamaah) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := r.collection.UpdateMany(ctx,
+		bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil},
+		bson.M{"$set": bson.M{
+			"nama":          titleCase(j.Nama),
+			"nik":           j.NIK,
+			"nomor_paspor":  j.NomorPaspor,
+			"alamat":        j.Alamat,
+			"no_hp":         j.NoHP,
+			"tempat_lahir":  j.TempatLahir,
+			"tanggal_lahir": j.TanggalLahir,
+			"jenis_kelamin": j.JenisKelamin,
+			"updated_at":    time.Now(),
+		}},
+	)
+	return err
+}
+
+// FindKonflikDataDiri returns an active jamaah outside group that, in one of
+// pakets, already uses nik or (non-empty) nomorPaspor. Used before syncing
+// a NIK/passport change so the sync can't fail halfway on the unique index.
+func (r *JamaahRepository) FindKonflikDataDiri(ctx context.Context, group, pakets []primitive.ObjectID, nik, nomorPaspor string) (*model.Jamaah, error) {
+	or := bson.A{bson.M{"nik": nik}}
+	if nomorPaspor != "" {
+		or = append(or, bson.M{"nomor_paspor": nomorPaspor})
+	}
+	var j model.Jamaah
+	err := r.collection.FindOne(ctx, bson.M{
+		"_id":        bson.M{"$nin": group},
+		"paket_id":   bson.M{"$in": pakets},
+		"deleted_at": nil,
+		"$or":        or,
+	}).Decode(&j)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &j, nil
+}
+
+// SetDocByIDs sets one single-file document field on several records.
+func (r *JamaahRepository) SetDocByIDs(ctx context.Context, ids []primitive.ObjectID, field, path string) error {
+	_, err := r.collection.UpdateMany(ctx,
+		bson.M{"_id": bson.M{"$in": ids}, "deleted_at": nil},
+		bson.M{"$set": bson.M{field: path, "updated_at": time.Now()}},
+	)
+	return err
+}
+
+// CountFileRefs counts records (including soft-deleted ones) that still
+// point at a stored document file.
+func (r *JamaahRepository) CountFileRefs(ctx context.Context, path string) (int64, error) {
+	or := bson.A{}
+	for _, f := range docFields {
+		or = append(or, bson.M{f: path})
+	}
+	return r.collection.CountDocuments(ctx, bson.M{"$or": or})
 }
 
 func (r *JamaahRepository) FindByIDs(ctx context.Context, ids []primitive.ObjectID) ([]model.Jamaah, error) {
@@ -370,6 +468,9 @@ type Statistics struct {
 	BatikNasionalDone  int64          `json:"batik_nasional_done"`
 	BatikKBIHDone      int64          `json:"batik_kbih_done"`
 	KoperDone          int64          `json:"koper_done"`
+	TotalUmroh         int64          `json:"total_umroh"`
+	SeragamUmrohDone   int64          `json:"seragam_umroh_done"`
+	KoperUmrohDone     int64          `json:"koper_umroh_done"`
 }
 
 func (r *JamaahRepository) GetStatistics(ctx context.Context) (*Statistics, error) {
@@ -418,6 +519,25 @@ func (r *JamaahRepository) GetStatistics(ctx context.Context) (*Statistics, erro
 					}},
 					"batik_kbih": bson.M{"$sum": bson.M{
 						"$cond": bson.A{"$batik_kbih_sudah_diterima", 1, 0},
+					}},
+					"koper": bson.M{"$sum": bson.M{
+						"$cond": bson.A{"$koper_sudah_diterima", 1, 0},
+					}},
+				}},
+			},
+			"completion_umroh": bson.A{
+				bson.M{"$lookup": bson.M{
+					"from":         "paket",
+					"localField":   "paket_id",
+					"foreignField": "_id",
+					"as":           "paket_info",
+				}},
+				bson.M{"$match": bson.M{"paket_info.tipe": "umroh"}},
+				bson.M{"$group": bson.M{
+					"_id":   nil,
+					"total": bson.M{"$sum": 1},
+					"seragam": bson.M{"$sum": bson.M{
+						"$cond": bson.A{"$seragam_umroh_sudah_diterima", 1, 0},
 					}},
 					"koper": bson.M{"$sum": bson.M{
 						"$cond": bson.A{"$koper_sudah_diterima", 1, 0},
@@ -497,6 +617,15 @@ func (r *JamaahRepository) GetStatistics(ctx context.Context) (*Statistics, erro
 			stats.BatikNasionalDone = toInt64(doc["batik_nasional"])
 			stats.BatikKBIHDone = toInt64(doc["batik_kbih"])
 			stats.KoperDone = toInt64(doc["koper"])
+		}
+	}
+
+	// Completion (umroh only)
+	if comp, ok := facet["completion_umroh"].(bson.A); ok && len(comp) > 0 {
+		if doc, ok := comp[0].(bson.M); ok {
+			stats.TotalUmroh = toInt64(doc["total"])
+			stats.SeragamUmrohDone = toInt64(doc["seragam"])
+			stats.KoperUmrohDone = toInt64(doc["koper"])
 		}
 	}
 

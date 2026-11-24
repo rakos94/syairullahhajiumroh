@@ -82,5 +82,8 @@ func (h *StatisticsHandler) GetStatistics(c *gin.Context) {
 		"batik_nasional_done":  stats.BatikNasionalDone,
 		"batik_kbih_done":      stats.BatikKBIHDone,
 		"koper_done":           stats.KoperDone,
+		"total_umroh_completion": stats.TotalUmroh,
+		"seragam_umroh_done":     stats.SeragamUmrohDone,
+		"koper_umroh_done":       stats.KoperUmrohDone,
 	})
 }

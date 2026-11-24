@@ -2,15 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchJamaahById, uploadDocument, getDocumentUrl, getDocumentDownloadUrl, getMultiDocumentUrl, getMultiDocumentDownloadUrl, deleteDocument } from '../api';
 import { formatRupiah } from '../utils/format';
+import { kelengkapanItems } from '../utils/kelengkapan';
 import StatusBadge from '../components/StatusBadge';
 import CopyButton from '../components/CopyButton';
 import NominalDialog from '../components/NominalDialog';
 
 const singleDocTypes = [
-  { key: 'ktp', label: 'KTP', field: 'foto_ktp' },
-  { key: 'kk', label: 'KK', field: 'foto_kk' },
-  { key: 'paspor', label: 'Paspor', field: 'foto_paspor' },
-  { key: 'pasfoto', label: 'Pas Foto', field: 'pasfoto' },
+  // shared: identity documents are shared by all pakets of the same person.
+  { key: 'ktp', label: 'KTP', field: 'foto_ktp', shared: true },
+  { key: 'kk', label: 'KK', field: 'foto_kk', shared: true },
+  { key: 'paspor', label: 'Paspor', field: 'foto_paspor', shared: true },
+  { key: 'pasfoto', label: 'Pas Foto', field: 'pasfoto', shared: true },
   { key: 'koper_diterima', label: 'Koper Diterima', field: 'foto_koper_diterima' },
 ];
 
@@ -155,7 +157,13 @@ export default function JamaahDetail() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Detail Jamaah</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link
+            to={`/jamaah/new?dari=${id}`}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700"
+          >
+            Daftarkan ke Paket Lain
+          </Link>
           <Link
             to={`/jamaah/${id}/edit`}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
@@ -187,20 +195,32 @@ export default function JamaahDetail() {
         </dl>
 
         <div className="mt-4 flex flex-wrap gap-4">
-          <CheckItem
-            label="Batik Nasional Sudah Dijahit"
-            checked={jamaah.batik_nasional_sudah_dijahit}
-          />
-          <CheckItem
-            label="Batik KBIH Sudah Diterima"
-            checked={jamaah.batik_kbih_sudah_diterima}
-          />
-          <CheckItem
-            label="Koper Sudah Diterima"
-            checked={jamaah.koper_sudah_diterima}
-          />
+          {kelengkapanItems(jamaah.paket?.tipe).map((item) => (
+            <CheckItem key={item.field} label={item.label} checked={jamaah[item.field]} />
+          ))}
         </div>
       </div>
+
+      {/* Same person (NIK) in other pakets */}
+      {jamaah.paket_lain?.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Paket Lain</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Jamaah dengan NIK yang sama juga terdaftar di paket berikut. Data diri dan dokumen identitas
+            dipakai bersama; tagihan, manasik, dan bukti pembayaran dicatat terpisah per paket.
+          </p>
+          <ul className="divide-y divide-gray-100">
+            {jamaah.paket_lain.map((p) => (
+              <li key={p.jamaah_id} className="flex items-center justify-between gap-3 py-2">
+                <Link to={`/jamaah/${p.jamaah_id}`} className="text-sm font-medium text-emerald-700 hover:underline">
+                  {p.paket || 'Paket tidak ditemukan'}
+                </Link>
+                <StatusBadge status={p.status_pembayaran} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Tagihan */}
       {jamaah.tagihan && (
@@ -277,6 +297,11 @@ export default function JamaahDetail() {
               >
                 <p className="text-sm font-medium text-gray-700 mb-2">
                   {doc.label}
+                  {doc.shared && jamaah.paket_lain?.length > 0 && (
+                    <span className="ml-2 text-xs font-normal text-gray-500">
+                      dipakai bersama {jamaah.paket_lain.length + 1} paket
+                    </span>
+                  )}
                 </p>
                 {hasFile ? (
                   <div className="space-y-2">

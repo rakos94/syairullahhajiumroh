@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -247,6 +248,36 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 				return nil
 			},
 		},
+		{
+			// One person (NIK) may join several pakets (e.g. umroh then haji):
+			// NIK and passport are now unique per paket instead of globally.
+			// deleted_at is part of the key so a soft-deleted registration
+			// doesn't block registering the same person in that paket again
+			// (active docs have no deleted_at, which indexes as null).
+			Name: "010_jamaah_unik_per_paket",
+			ApplyFn: func(ctx context.Context, db *mongo.Database) error {
+				coll := db.Collection("jamaah")
+				for _, name := range []string{"nik_1", "nomor_paspor_1"} {
+					if _, err := coll.Indexes().DropOne(ctx, name); err != nil && !isIndexNotFound(err) {
+						return err
+					}
+				}
+				_, err := coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+					{
+						Keys:    bson.D{{Key: "nik", Value: 1}, {Key: "paket_id", Value: 1}, {Key: "deleted_at", Value: 1}},
+						Options: options.Index().SetName("nik_paket_unik").SetUnique(true),
+					},
+					{
+						// Empty passport numbers are not indexed, so jamaah
+						// without a passport yet don't collide.
+						Keys: bson.D{{Key: "nomor_paspor", Value: 1}, {Key: "paket_id", Value: 1}, {Key: "deleted_at", Value: 1}},
+						Options: options.Index().SetName("paspor_paket_unik").SetUnique(true).
+							SetPartialFilterExpression(bson.M{"nomor_paspor": bson.M{"$gt": ""}}),
+					},
+				})
+				return err
+			},
+		},
 	}
 
 	for _, m := range migrations {
@@ -274,4 +305,11 @@ func RunMigrations(ctx context.Context, db *mongo.Database) error {
 	}
 
 	return nil
+}
+
+// isIndexNotFound reports whether dropping an index failed because it
+// doesn't exist (IndexNotFound, code 27).
+func isIndexNotFound(err error) bool {
+	var ce mongo.CommandError
+	return errors.As(err, &ce) && ce.Code == 27
 }

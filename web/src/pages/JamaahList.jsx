@@ -187,6 +187,7 @@ export default function JamaahList() {
           <option value="">Semua Kelengkapan</option>
           <option value="batik_nasional_belum">Batik Nasional Belum</option>
           <option value="batik_kbih_belum">Batik KBIH Belum</option>
+          <option value="seragam_umroh_belum">Seragam Umroh Belum</option>
           <option value="koper_belum">Koper Belum</option>
           <option value="manasik_belum">Kamar Manasik Belum</option>
         </select>

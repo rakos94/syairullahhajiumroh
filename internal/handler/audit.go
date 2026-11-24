@@ -102,7 +102,9 @@ var statusLabels = map[string]string{
 	"lunas":       "Lunas",
 }
 
-func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
+// diffDataDiri compares the person's own fields (shared by all
+// registrations of a NIK).
+func diffDataDiri(old, new *model.Jamaah) []model.FieldChange {
 	var changes []model.FieldChange
 	diffField(&changes, "Nama", old.Nama, new.Nama)
 	diffField(&changes, "NIK", old.NIK, new.NIK)
@@ -112,6 +114,11 @@ func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
 	diffField(&changes, "Tempat Lahir", old.TempatLahir, new.TempatLahir)
 	diffField(&changes, "Tanggal Lahir", formatDate(old.TanggalLahir), formatDate(new.TanggalLahir))
 	diffField(&changes, "Jenis Kelamin", old.JenisKelamin, new.JenisKelamin)
+	return changes
+}
+
+func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
+	changes := diffDataDiri(old, new)
 
 	if old.PaketID != new.PaketID {
 		changes = append(changes, model.FieldChange{Field: "Paket", OldValue: old.PaketID.Hex(), NewValue: new.PaketID.Hex()})
@@ -145,6 +152,7 @@ func diffJamaah(old, new *model.Jamaah) []model.FieldChange {
 	diffField(&changes, "Batik Nasional Sudah Dijahit", formatBool(old.BatikNasionalSudahDijahit), formatBool(new.BatikNasionalSudahDijahit))
 	diffField(&changes, "Batik KBIH Sudah Diterima", formatBool(old.BatikKBIHSudahDiterima), formatBool(new.BatikKBIHSudahDiterima))
 	diffField(&changes, "Koper Sudah Diterima", formatBool(old.KoperSudahDiterima), formatBool(new.KoperSudahDiterima))
+	diffField(&changes, "Seragam Umroh Sudah Diterima", formatBool(old.SeragamUmrohSudahDiterima), formatBool(new.SeragamUmrohSudahDiterima))
 	diffField(&changes, "Gedung Manasik", old.GedungManasik, new.GedungManasik)
 	diffField(&changes, "Kamar Manasik", old.KamarManasik, new.KamarManasik)
 	diffField(&changes, "Rombongan", old.Rombongan, new.Rombongan)

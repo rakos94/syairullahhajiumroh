@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"syairullahhajiumroh/internal/repository"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // PortalHandler serves the public, self-service lookup used by jamaah
@@ -50,10 +50,17 @@ type cekKamarRequest struct {
 }
 
 // CekKamarResponse only exposes what a jamaah needs to see; never return the
-// full Jamaah document from this public endpoint.
+// full Jamaah document from this public endpoint. One person (NIK) can be
+// registered in several pakets, so each registration is one entry.
 type CekKamarResponse struct {
-	Nama                 string                     `json:"nama"`
+	Nama  string          `json:"nama"`
+	Paket []CekKamarPaket `json:"paket"`
+}
+
+// CekKamarPaket is one registration (paket) of the jamaah.
+type CekKamarPaket struct {
 	Paket                string                     `json:"paket"`
+	TipePaket            string                     `json:"tipe_paket"`
 	TanggalKeberangkatan *model.KeberangkatanJamaah `json:"tanggal_keberangkatan,omitempty"`
 	GedungManasik        string                     `json:"gedung_manasik"`
 	KamarManasik         string                     `json:"kamar_manasik"`
@@ -72,7 +79,7 @@ type CekKamarResponse struct {
 
 // CekKamar godoc
 // @Summary      Cek kamar manasik (publik)
-// @Description  Jamaah memasukkan NIK dan tanggal lahir untuk melihat gedung dan kamar manasik
+// @Description  Jamaah memasukkan NIK dan tanggal lahir untuk melihat gedung dan kamar manasik di semua paket yang diikuti
 // @Tags         portal
 // @Accept       json
 // @Produce      json
@@ -97,23 +104,51 @@ func (h *PortalHandler) CekKamar(c *gin.Context) {
 	// can't be used to check whether a NIK is registered.
 	notFound := gin.H{"error": "data tidak ditemukan, periksa kembali NIK dan tanggal lahir"}
 
-	jamaah, err := h.repo.FindByNIK(c.Request.Context(), strings.TrimSpace(req.NIK))
+	ctx := c.Request.Context()
+	list, err := h.repo.FindAllByNIK(ctx, strings.TrimSpace(req.NIK))
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, notFound)
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "terjadi kesalahan, coba lagi nanti"})
 		return
 	}
 
-	if jamaah.TanggalLahir.IsZero() || jamaah.TanggalLahir.UTC().Format("2006-01-02") != lahir.Format("2006-01-02") {
+	resp := CekKamarResponse{Paket: []CekKamarPaket{}}
+	for i := range list {
+		jamaah := &list[i]
+		// Each registration must match the birth date on its own.
+		if jamaah.TanggalLahir.IsZero() || jamaah.TanggalLahir.UTC().Format("2006-01-02") != lahir.Format("2006-01-02") {
+			continue
+		}
+		// Newest registration's name wins (most likely the corrected one).
+		resp.Nama = jamaah.Nama
+		resp.Paket = append(resp.Paket, h.cekKamarPaket(ctx, jamaah))
+	}
+	if len(resp.Paket) == 0 {
 		c.JSON(http.StatusNotFound, notFound)
 		return
 	}
 
-	resp := CekKamarResponse{
-		Nama:                 jamaah.Nama,
+	c.JSON(http.StatusOK, resp)
+}
+
+// kelengkapan lists the items a jamaah receives: haji gets batik, umroh a
+// seragam; both get a koper.
+func kelengkapan(j *model.Jamaah, tipe string) []StatusItem {
+	koper := StatusItem{Nama: "Koper sudah diterima", Selesai: j.KoperSudahDiterima}
+	switch tipe {
+	case "haji":
+		return []StatusItem{
+			{Nama: "Batik Nasional sudah dijahit", Selesai: j.BatikNasionalSudahDijahit},
+			{Nama: "Batik KBIH sudah diterima", Selesai: j.BatikKBIHSudahDiterima},
+			koper,
+		}
+	case "umroh":
+		return []StatusItem{{Nama: "Seragam umroh sudah diterima", Selesai: j.SeragamUmrohSudahDiterima}, koper}
+	}
+	return []StatusItem{koper}
+}
+
+func (h *PortalHandler) cekKamarPaket(ctx context.Context, jamaah *model.Jamaah) CekKamarPaket {
+	out := CekKamarPaket{
 		TanggalKeberangkatan: jamaah.TanggalKeberangkatan,
 		GedungManasik:        jamaah.GedungManasik,
 		KamarManasik:         jamaah.KamarManasik,
@@ -121,11 +156,6 @@ func (h *PortalHandler) CekKamar(c *gin.Context) {
 		Regu:                 jamaah.Regu,
 		KetuaRegu:            []KontakKetua{},
 		KetuaRombongan:       []KontakKetua{},
-		Kelengkapan: []StatusItem{
-			{Nama: "Batik Nasional sudah dijahit", Selesai: jamaah.BatikNasionalSudahDijahit},
-			{Nama: "Batik KBIH sudah diterima", Selesai: jamaah.BatikKBIHSudahDiterima},
-			{Nama: "Koper sudah diterima", Selesai: jamaah.KoperSudahDiterima},
-		},
 		Dokumen: []StatusItem{
 			{Nama: "KTP", Selesai: jamaah.FotoKTP != ""},
 			{Nama: "Kartu Keluarga", Selesai: jamaah.FotoKK != ""},
@@ -133,21 +163,26 @@ func (h *PortalHandler) CekKamar(c *gin.Context) {
 			{Nama: "Pas foto", Selesai: jamaah.Pasfoto != ""},
 		},
 	}
-	if !jamaah.PaketID.IsZero() {
-		if paket, err := h.paketRepo.FindByID(c.Request.Context(), jamaah.PaketID); err == nil {
-			resp.Paket = paket.Label
-			if paket.Tipe == "haji" {
-				resp.QRToken = manasikToken(h.qrSecret, jamaah.ID)
-				regu, rombongan, err := h.repo.FindLeaders(c.Request.Context(), jamaah.PaketID, jamaah.Rombongan, jamaah.Regu)
-				if err == nil {
-					resp.KetuaRegu = toKontak(regu)
-					resp.KetuaRombongan = toKontak(rombongan)
-				}
-			}
+	if jamaah.PaketID.IsZero() {
+		out.Kelengkapan = kelengkapan(jamaah, "")
+		return out
+	}
+	paket, err := h.paketRepo.FindByID(ctx, jamaah.PaketID)
+	if err != nil {
+		out.Kelengkapan = kelengkapan(jamaah, "")
+		return out
+	}
+	out.Paket = paket.Label
+	out.TipePaket = paket.Tipe
+	out.Kelengkapan = kelengkapan(jamaah, paket.Tipe)
+	if paket.Tipe == "haji" {
+		out.QRToken = manasikToken(h.qrSecret, jamaah.ID)
+		if regu, rombongan, err := h.repo.FindLeaders(ctx, jamaah.PaketID, jamaah.Rombongan, jamaah.Regu); err == nil {
+			out.KetuaRegu = toKontak(regu)
+			out.KetuaRombongan = toKontak(rombongan)
 		}
 	}
-
-	c.JSON(http.StatusOK, resp)
+	return out
 }
 
 func (h *PortalHandler) RegisterRoutes(r *gin.RouterGroup, middlewares ...gin.HandlerFunc) {

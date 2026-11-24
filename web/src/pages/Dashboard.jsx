@@ -97,6 +97,13 @@ export default function Dashboard() {
       {umrohPakets.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 border-b border-purple-200 pb-2">Umroh</h2>
+
+          {/* Kelengkapan Umroh */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ProgressCard label="Seragam Umroh" done={stats.seragam_umroh_done} total={stats.total_umroh_completion} />
+            <ProgressCard label="Koper Diterima" done={stats.koper_umroh_done} total={stats.total_umroh_completion} />
+          </div>
+
           <PaketTable pakets={umrohPakets} />
         </div>
       )}

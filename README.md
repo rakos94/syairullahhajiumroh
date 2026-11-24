@@ -212,12 +212,13 @@ Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint but
 
 ### Jamaah
 
-- Identitas: Nama (auto title case), NIK (unik), Nomor Paspor, Alamat, No HP, Tempat/Tanggal Lahir, Jenis Kelamin
+- Identitas: Nama (auto title case), NIK, Nomor Paspor, Alamat, No HP, Tempat/Tanggal Lahir, Jenis Kelamin
 - Paket, Tanggal Keberangkatan, Pilihan Harga, Potongan (+ keterangan)
 - Pembayaran: Status (belum_bayar / dp / lunas — otomatis dari bukti jika paket punya harga), Bukti DP & Pelunasan (file + nominal), No Rekening Haji, Tipe Bank
-- Perlengkapan: Batik Nasional, Batik KBIH, Koper
+- Perlengkapan: haji → Batik Nasional, Batik KBIH, Koper; umroh → Seragam Umroh, Koper
 - Manasik: Gedung, Kamar, Rombongan, Regu, Ketua Regu/Rombongan
 - Dokumen: KTP, KK, Paspor, Pas Foto, Foto Koper Diterima
+- Satu orang bisa ikut beberapa paket (mis. umroh lalu haji): tiap paket satu record jamaah. NIK dan nomor paspor unik **per paket** (record yang sudah dihapus tidak dihitung). Data diri (nama, NIK, paspor, alamat, no HP, tempat/tanggal lahir, jenis kelamin) disinkronkan otomatis ke semua record dengan NIK yang sama saat diedit atau saat didaftarkan ke paket baru (tanggal lahir harus sama dengan pendaftaran sebelumnya, untuk mencegah salah ketik NIK), dan dokumen identitas (KTP, KK, paspor, pas foto) dipakai bersama: sekali unggah berlaku di semua paket. Tagihan, bukti pembayaran, foto koper, dan manasik tetap per record.
 
 ### Lainnya
 
@@ -234,7 +235,8 @@ Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint but
 - Upload dokumen dengan kompresi gambar di browser, preview lightbox, link dokumen kedaluwarsa
 - Tagihan per jamaah (harga, potongan, DP, pelunasan, sisa) dengan export
 - Manasik: pembagian kamar/regu (import/export), sesi, absensi via scan QR
-- Portal jamaah publik: Cek Kamar + QR absensi, pengumuman
+- Portal jamaah publik: Cek Kamar (menampilkan semua paket yang diikuti NIK tersebut) + QR absensi, pengumuman
+- "Daftarkan ke Paket Lain" dari detail jamaah: data diri disalin ke pendaftaran paket baru
 - Dashboard statistik dan riwayat perubahan (audit log)
 - Format Rupiah + terbilang, tanggal Indonesia (dd/mm/yyyy), tombol salin (NIK, dll.)
 - Single binary deployment (Go embed React build), backup harian otomatis

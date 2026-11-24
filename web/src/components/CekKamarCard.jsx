@@ -81,6 +81,87 @@ function KontakKetua({ label, list }) {
   );
 }
 
+// One registration (paket) of the jamaah.
+function PaketResult({ item, nama, showLabel }) {
+  const keberangkatan = item.tanggal_keberangkatan;
+  const keberangkatanText = keberangkatan
+    ? [keberangkatan.nama, formatDate(keberangkatan.tanggal)].filter(Boolean).join(' - ')
+    : '';
+  const sudahDitentukan = item.gedung_manasik || item.kamar_manasik;
+  // Manasik (gedung/kamar/rombongan) is only for haji.
+  const isHaji = item.tipe_paket === 'haji';
+
+  return (
+    <div>
+      {item.paket && (
+        <p className={showLabel ? 'text-base font-semibold text-gray-900' : 'text-sm text-gray-600 mt-1'}>
+          {item.paket}
+        </p>
+      )}
+      {keberangkatanText && (
+        <p className="text-sm text-gray-600">Keberangkatan: {keberangkatanText}</p>
+      )}
+
+      {isHaji &&
+        (sudahDitentukan ? (
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
+              <p className="text-xs uppercase tracking-wide text-emerald-700">Gedung</p>
+              <p className="text-2xl font-bold text-emerald-900 mt-1 break-words">
+                {item.gedung_manasik || '-'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
+              <p className="text-xs uppercase tracking-wide text-emerald-700">Kamar</p>
+              <p className="text-2xl font-bold text-emerald-900 mt-1 break-words">
+                {item.kamar_manasik || '-'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+            Gedung dan kamar manasik Anda belum ditentukan. Silakan cek kembali nanti atau
+            hubungi petugas.
+          </div>
+        ))}
+
+      {(item.rombongan || item.regu) && (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-center">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Rombongan</p>
+            <p className="text-lg font-semibold text-gray-900 break-words">{item.rombongan || '-'}</p>
+          </div>
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-center">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Regu</p>
+            <p className="text-lg font-semibold text-gray-900 break-words">{item.regu || '-'}</p>
+          </div>
+        </div>
+      )}
+
+      {(item.ketua_regu?.length > 0 || item.ketua_rombongan?.length > 0) && (
+        <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-4">
+          <KontakKetua label="Ketua Regu" list={item.ketua_regu} />
+          <KontakKetua label="Ketua Rombongan" list={item.ketua_rombongan} />
+        </div>
+      )}
+
+      {(item.kelengkapan?.length > 0 || item.dokumen?.length > 0) && (
+        <div className="mt-4 space-y-4 rounded-lg border border-gray-200 p-4">
+          <StatusList title="Kelengkapan" items={item.kelengkapan} />
+          <StatusList title="Dokumen diterima kantor" items={item.dokumen} />
+          {[...(item.kelengkapan || []), ...(item.dokumen || [])].some((i) => !i.selesai) && (
+            <p className="text-xs text-gray-500">
+              Tanda ! berarti belum lengkap. Hubungi kantor Syairullah jika menurut Anda sudah diserahkan.
+            </p>
+          )}
+        </div>
+      )}
+
+      {item.qr_token && <ManasikQr token={item.qr_token} nama={nama} />}
+    </div>
+  );
+}
+
 export default function CekKamarCard() {
   const [nik, setNik] = useState('');
   const [tanggalLahir, setTanggalLahir] = useState('');
@@ -111,11 +192,8 @@ export default function CekKamarCard() {
   const inputClass =
     'w-full px-3 py-3 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500';
 
-  const keberangkatan = result?.tanggal_keberangkatan;
-  const keberangkatanText = keberangkatan
-    ? [keberangkatan.nama, formatDate(keberangkatan.tanggal)].filter(Boolean).join(' - ')
-    : '';
-  const sudahDitentukan = result && (result.gedung_manasik || result.kamar_manasik);
+  const daftarPaket = result?.paket || [];
+  const banyakPaket = daftarPaket.length > 1;
 
   return (
     <>
@@ -168,66 +246,20 @@ export default function CekKamarCard() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-sm text-gray-500">Assalamu'alaikum,</p>
           <p className="text-xl font-semibold text-gray-900">{result.nama}</p>
-          {result.paket && <p className="text-sm text-gray-600 mt-1">{result.paket}</p>}
-          {keberangkatanText && (
-            <p className="text-sm text-gray-600">Keberangkatan: {keberangkatanText}</p>
+          {banyakPaket && (
+            <p className="text-sm text-gray-600 mt-1">Anda terdaftar di {daftarPaket.length} paket.</p>
           )}
 
-          {sudahDitentukan ? (
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
-                <p className="text-xs uppercase tracking-wide text-emerald-700">Gedung</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1 break-words">
-                  {result.gedung_manasik || '-'}
-                </p>
+          <div className={banyakPaket ? 'mt-4 space-y-4' : ''}>
+            {daftarPaket.map((item, idx) => (
+              <div
+                key={`${item.paket}-${idx}`}
+                className={banyakPaket ? 'rounded-lg border border-gray-200 p-4' : ''}
+              >
+                <PaketResult item={item} nama={result.nama} showLabel={banyakPaket} />
               </div>
-              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
-                <p className="text-xs uppercase tracking-wide text-emerald-700">Kamar</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1 break-words">
-                  {result.kamar_manasik || '-'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-6 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-              Gedung dan kamar manasik Anda belum ditentukan. Silakan cek kembali nanti atau
-              hubungi petugas.
-            </div>
-          )}
-
-          {(result.rombongan || result.regu) && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-center">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Rombongan</p>
-                <p className="text-lg font-semibold text-gray-900 break-words">{result.rombongan || '-'}</p>
-              </div>
-              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-center">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Regu</p>
-                <p className="text-lg font-semibold text-gray-900 break-words">{result.regu || '-'}</p>
-              </div>
-            </div>
-          )}
-
-          {(result.ketua_regu?.length > 0 || result.ketua_rombongan?.length > 0) && (
-            <div className="mt-4 space-y-3 rounded-lg border border-gray-200 p-4">
-              <KontakKetua label="Ketua Regu" list={result.ketua_regu} />
-              <KontakKetua label="Ketua Rombongan" list={result.ketua_rombongan} />
-            </div>
-          )}
-
-          {(result.kelengkapan?.length > 0 || result.dokumen?.length > 0) && (
-            <div className="mt-4 space-y-4 rounded-lg border border-gray-200 p-4">
-              <StatusList title="Kelengkapan" items={result.kelengkapan} />
-              <StatusList title="Dokumen diterima kantor" items={result.dokumen} />
-              {[...(result.kelengkapan || []), ...(result.dokumen || [])].some((i) => !i.selesai) && (
-                <p className="text-xs text-gray-500">
-                  Tanda ! berarti belum lengkap. Hubungi kantor Syairullah jika menurut Anda sudah diserahkan.
-                </p>
-              )}
-            </div>
-          )}
-
-          {result.qr_token && <ManasikQr token={result.qr_token} nama={result.nama} />}
+            ))}
+          </div>
 
           <button
             onClick={reset}

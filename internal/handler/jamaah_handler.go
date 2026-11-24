@@ -137,11 +137,53 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 		}
 	}
 
+	// Documents are only set through the upload endpoints. Identity
+	// documents of a person already registered in another paket are reused.
+	jamaah.FotoKTP, jamaah.FotoKK, jamaah.FotoPaspor, jamaah.Pasfoto, jamaah.FotoKoperDiterima = "", "", "", "", ""
+	jamaah.BuktiDP, jamaah.BuktiPelunasan = nil, nil
+	others, err := h.repo.FindAllByNIK(c.Request.Context(), jamaah.NIK)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(others) > 0 {
+		// The person is already registered in another paket. A different
+		// birth date most likely means a mistyped NIK; refuse rather than
+		// overwrite someone else's data.
+		last := &others[len(others)-1]
+		if !sameDay(last.TanggalLahir, jamaah.TanggalLahir) {
+			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("NIK ini sudah terdaftar atas nama %s dengan tanggal lahir berbeda (%s). Periksa kembali NIK, atau perbaiki tanggal lahir di data yang sudah ada.", last.Nama, formatDate(last.TanggalLahir))})
+			return
+		}
+		if msg, err := h.konflikSinkron(c, primitive.NilObjectID, others, &jamaah); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if msg != "" {
+			c.JSON(http.StatusConflict, gin.H{"error": msg})
+			return
+		}
+		// Newest registration first, so the latest upload wins.
+		for i := len(others) - 1; i >= 0; i-- {
+			o := &others[i]
+			for _, d := range []struct {
+				dst *string
+				src string
+			}{
+				{&jamaah.FotoKTP, o.FotoKTP}, {&jamaah.FotoKK, o.FotoKK},
+				{&jamaah.FotoPaspor, o.FotoPaspor}, {&jamaah.Pasfoto, o.Pasfoto},
+			} {
+				if *d.dst == "" {
+					*d.dst = d.src
+				}
+			}
+		}
+	}
+
 	applyStatusOtomatis(&jamaah, paket)
 
 	if err := h.repo.Create(c.Request.Context(), &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			c.JSON(http.StatusConflict, gin.H{"error": "jamaah dengan NIK atau nomor paspor tersebut sudah ada"})
+			c.JSON(http.StatusConflict, gin.H{"error": "NIK atau nomor paspor tersebut sudah terdaftar di paket ini"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -149,6 +191,12 @@ func (h *JamaahHandler) Create(c *gin.Context) {
 	}
 
 	logAudit(c, h.auditRepo, "jamaah", jamaah.ID, jamaah.Nama, "create", fmt.Sprintf("Menambah jamaah: %s", jamaah.Nama))
+
+	// What was entered now is the person's latest data diri.
+	if err := h.sinkronDataDiri(c, others, &jamaah, paket.Label); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "data tersimpan, tetapi gagal memperbarui data diri di paket lain: " + err.Error()})
+		return
+	}
 
 	jamaah.Paket = paket
 	c.JSON(http.StatusCreated, jamaah)
@@ -242,6 +290,20 @@ func (h *JamaahHandler) FindByID(c *gin.Context) {
 	jamaah.Tagihan = model.HitungTagihan(jamaah, jamaah.Paket)
 	jamaah.DokumenAkses = newDokumenAkses(h.secret, jamaah.ID)
 
+	// Same person registered in other pakets.
+	if others, err := h.repo.FindAllByNIK(c.Request.Context(), jamaah.NIK); err == nil {
+		for _, o := range others {
+			if o.ID == jamaah.ID {
+				continue
+			}
+			pl := model.PaketLain{JamaahID: o.ID, PaketID: o.PaketID, StatusPembayaran: o.StatusPembayaran}
+			if p, err := h.paketRepo.FindByID(c.Request.Context(), o.PaketID); err == nil {
+				pl.Paket = p.Label
+			}
+			jamaah.PaketLain = append(jamaah.PaketLain, pl)
+		}
+	}
+
 	c.JSON(http.StatusOK, jamaah)
 }
 
@@ -327,9 +389,27 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 	// Receipts are known now, so the status can be derived (priced paket only).
 	applyStatusOtomatis(&jamaah, paket)
 
+	// The same person's other registrations get the new personal data too.
+	// Check first that a changed NIK/passport doesn't collide in their
+	// pakets, so the sync can't stop halfway.
+	others, err := h.otherRegistrations(c, oldJamaah)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(others) > 0 && (jamaah.NIK != oldJamaah.NIK || jamaah.NomorPaspor != oldJamaah.NomorPaspor) {
+		if msg, err := h.konflikSinkron(c, id, others, &jamaah); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if msg != "" {
+			c.JSON(http.StatusConflict, gin.H{"error": msg})
+			return
+		}
+	}
+
 	if err := h.repo.Update(c.Request.Context(), id, &jamaah); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			c.JSON(http.StatusConflict, gin.H{"error": "jamaah dengan NIK atau nomor paspor tersebut sudah ada"})
+			c.JSON(http.StatusConflict, gin.H{"error": "NIK atau nomor paspor tersebut sudah terdaftar di paket ini"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -338,6 +418,11 @@ func (h *JamaahHandler) Update(c *gin.Context) {
 
 	changes := diffJamaah(oldJamaah, &jamaah)
 	logAuditWithChanges(c, h.auditRepo, "jamaah", id, jamaah.Nama, "update", fmt.Sprintf("Memperbarui jamaah: %s", jamaah.Nama), changes)
+
+	if err := h.sinkronDataDiri(c, others, &jamaah, paket.Label); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "data tersimpan, tetapi gagal memperbarui data diri di paket lain: " + err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "jamaah berhasil diperbarui"})
 }
@@ -437,8 +522,11 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Delete old file for single-doc types
-	if !multiDocTypes[docType] {
+	shared := isIdentityDoc(bsonField)
+
+	// Delete old file for per-paket single-doc types. Shared identity
+	// documents are cleaned up after the new path is saved everywhere.
+	if !multiDocTypes[docType] && !shared {
 		var oldPath string
 		switch bsonField {
 		case "foto_ktp":
@@ -458,7 +546,9 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 	}
 
 	var filename string
-	if multiDocTypes[docType] {
+	if multiDocTypes[docType] || shared {
+		// Unique names: shared files may live in another registration's
+		// folder and must never be overwritten in place.
 		filename = fmt.Sprintf("%s_%d%s", docType, time.Now().UnixMilli(), ext)
 	} else {
 		filename = docType + ext
@@ -476,6 +566,11 @@ func (h *JamaahHandler) UploadDocument(c *gin.Context) {
 		nominal, _ := strconv.ParseFloat(c.PostForm("nominal"), 64)
 		entry := model.BuktiPembayaran{File: relativePath, Nominal: nominal}
 		if err := h.repo.PushToArray(c.Request.Context(), id, bsonField, entry); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	} else if shared {
+		if err := h.saveSharedDoc(c, jamaah, docType, bsonField, relativePath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -640,6 +735,127 @@ func (h *JamaahHandler) DeleteDocument(c *gin.Context) {
 	h.syncStatusAfterReceiptChange(c, id)
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("dokumen %s berhasil dihapus", docType)})
+}
+
+// otherRegistrations returns the active registrations of the same person
+// (same NIK) in other pakets.
+func (h *JamaahHandler) otherRegistrations(c *gin.Context, j *model.Jamaah) ([]model.Jamaah, error) {
+	all, err := h.repo.FindAllByNIK(c.Request.Context(), j.NIK)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.Jamaah, 0, len(all))
+	for _, o := range all {
+		if o.ID != j.ID {
+			out = append(out, o)
+		}
+	}
+	return out, nil
+}
+
+func sameDay(a, b time.Time) bool {
+	return a.UTC().Format("2006-01-02") == b.UTC().Format("2006-01-02")
+}
+
+// konflikSinkron checks that j's NIK and passport can be synced to the
+// person's other registrations without hitting the unique index in their
+// pakets (so a sync can't stop halfway). It returns a message when not.
+func (h *JamaahHandler) konflikSinkron(c *gin.Context, self primitive.ObjectID, others []model.Jamaah, j *model.Jamaah) (string, error) {
+	group := []primitive.ObjectID{self}
+	pakets := []primitive.ObjectID{}
+	for _, o := range others {
+		group = append(group, o.ID)
+		pakets = append(pakets, o.PaketID)
+	}
+	konflik, err := h.repo.FindKonflikDataDiri(c.Request.Context(), group, pakets, j.NIK, j.NomorPaspor)
+	if err != nil || konflik == nil {
+		return "", err
+	}
+	label := "paket lain"
+	if p, err := h.paketRepo.FindByID(c.Request.Context(), konflik.PaketID); err == nil {
+		label = p.Label
+	}
+	return fmt.Sprintf("NIK atau nomor paspor tersebut sudah dipakai %s di %s, tempat jamaah ini juga terdaftar", konflik.Nama, label), nil
+}
+
+// sinkronDataDiri copies j's data diri to the person's other registrations
+// and records the change in each one's Riwayat.
+func (h *JamaahHandler) sinkronDataDiri(c *gin.Context, others []model.Jamaah, j *model.Jamaah, dari string) error {
+	ids := []primitive.ObjectID{}
+	for i := range others {
+		if len(diffDataDiri(&others[i], j)) > 0 {
+			ids = append(ids, others[i].ID)
+		}
+	}
+	if err := h.repo.SyncDataDiri(c.Request.Context(), ids, j); err != nil {
+		return err
+	}
+	for i := range others {
+		o := &others[i]
+		if changes := diffDataDiri(o, j); len(changes) > 0 {
+			logAuditWithChanges(c, h.auditRepo, "jamaah", o.ID, j.Nama, "update",
+				fmt.Sprintf("Data diri disinkronkan dari %s: %s", dari, j.Nama), changes)
+		}
+	}
+	return nil
+}
+
+func isIdentityDoc(field string) bool {
+	for _, f := range repository.IdentityDocFields {
+		if f == field {
+			return true
+		}
+	}
+	return false
+}
+
+func docPath(j *model.Jamaah, field string) string {
+	switch field {
+	case "foto_ktp":
+		return j.FotoKTP
+	case "foto_kk":
+		return j.FotoKK
+	case "foto_paspor":
+		return j.FotoPaspor
+	case "pasfoto":
+		return j.Pasfoto
+	case "foto_koper_diterima":
+		return j.FotoKoperDiterima
+	}
+	return ""
+}
+
+// saveSharedDoc stores a new identity document on every registration of
+// the person, then deletes replaced files that no record points at anymore
+// (soft-deleted records count, so their files are kept).
+func (h *JamaahHandler) saveSharedDoc(c *gin.Context, j *model.Jamaah, docType, field, path string) error {
+	ctx := c.Request.Context()
+	others, err := h.otherRegistrations(c, j)
+	if err != nil {
+		return err
+	}
+	ids := []primitive.ObjectID{j.ID}
+	oldPaths := map[string]bool{docPath(j, field): true}
+	for i := range others {
+		ids = append(ids, others[i].ID)
+		oldPaths[docPath(&others[i], field)] = true
+	}
+	if err := h.repo.SetDocByIDs(ctx, ids, field, path); err != nil {
+		return err
+	}
+	for i := range others {
+		logAudit(c, h.auditRepo, "jamaah", others[i].ID, others[i].Nama, "upload",
+			fmt.Sprintf("Dokumen %s disinkronkan dari paket lain: %s", docType, others[i].Nama))
+	}
+	for old := range oldPaths {
+		if old == "" || old == path {
+			continue
+		}
+		if n, err := h.repo.CountFileRefs(ctx, old); err == nil && n == 0 {
+			os.Remove(filepath.Join(h.uploadDir, old))
+		}
+	}
+	return nil
 }
 
 // syncStatusAfterReceiptChange reloads the jamaah (with its new receipts) and

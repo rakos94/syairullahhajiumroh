@@ -16,6 +16,14 @@ type BuktiPembayaran struct {
 	Nominal float64 `json:"nominal" bson:"nominal"`
 }
 
+// PaketLain points to another registration of the same person (same NIK).
+type PaketLain struct {
+	JamaahID         primitive.ObjectID `json:"jamaah_id"`
+	PaketID          primitive.ObjectID `json:"paket_id"`
+	Paket            string             `json:"paket"`
+	StatusPembayaran string             `json:"status_pembayaran"`
+}
+
 type Jamaah struct {
 	ID                        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Nama                      string             `json:"nama" bson:"nama" binding:"required"`
@@ -40,6 +48,8 @@ type Jamaah struct {
 	BatikNasionalSudahDijahit bool               `json:"batik_nasional_sudah_dijahit" bson:"batik_nasional_sudah_dijahit"`
 	BatikKBIHSudahDiterima    bool               `json:"batik_kbih_sudah_diterima" bson:"batik_kbih_sudah_diterima"`
 	KoperSudahDiterima        bool               `json:"koper_sudah_diterima" bson:"koper_sudah_diterima"`
+	// Umroh only (haji uses the two batik fields instead).
+	SeragamUmrohSudahDiterima bool `json:"seragam_umroh_sudah_diterima" bson:"seragam_umroh_sudah_diterima"`
 	GedungManasik             string             `json:"gedung_manasik" bson:"gedung_manasik"`
 	KamarManasik              string             `json:"kamar_manasik" bson:"kamar_manasik"`
 	Rombongan                 string             `json:"rombongan" bson:"rombongan"`
@@ -56,6 +66,9 @@ type Jamaah struct {
 	Keterangan                string             `json:"keterangan" bson:"keterangan"`
 	// Computed from paket price and payment receipts; never stored.
 	Tagihan *Tagihan `json:"tagihan,omitempty" bson:"-"`
+	// Other active registrations of the same NIK (other pakets); only set on
+	// the admin detail endpoint.
+	PaketLain []PaketLain `json:"paket_lain,omitempty" bson:"-"`
 	// Signed access for document links; only set on the admin detail endpoint.
 	DokumenAkses *DokumenAkses `json:"dokumen_akses,omitempty" bson:"-"`
 

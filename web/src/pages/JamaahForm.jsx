@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createJamaah, fetchJamaahById, updateJamaah, fetchPaketList } from '../api';
 import RupiahInput from '../components/RupiahInput';
 import TanggalInput from '../components/TanggalInput';
 import { formatRupiah } from '../utils/format';
+import { kelengkapanItems } from '../utils/kelengkapan';
 
 const emptyForm = {
   nama: '',
@@ -25,6 +26,7 @@ const emptyForm = {
   batik_nasional_sudah_dijahit: false,
   batik_kbih_sudah_diterima: false,
   koper_sudah_diterima: false,
+  seragam_umroh_sudah_diterima: false,
   gedung_manasik: '',
   kamar_manasik: '',
   rombongan: '',
@@ -65,6 +67,12 @@ export default function JamaahForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  // "Daftarkan ke Paket Lain": prefill personal data from an existing registration.
+  const [searchParams] = useSearchParams();
+  const dariId = isEdit ? '' : searchParams.get('dari') || '';
+  const [dariPaket, setDariPaket] = useState('');
+  // Other registrations of the same person; their data diri follows this edit.
+  const [paketLain, setPaketLain] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
   const [paketOptions, setPaketOptions] = useState([]);
@@ -84,6 +92,7 @@ export default function JamaahForm() {
       fetchJamaahById(id)
         .then((data) => {
           setTotalDibayar(data.tagihan?.total_dibayar || 0);
+          setPaketLain(data.paket_lain || []);
           setForm({
             nama: data.nama || '',
             nik: data.nik || '',
@@ -104,6 +113,7 @@ export default function JamaahForm() {
             batik_nasional_sudah_dijahit: data.batik_nasional_sudah_dijahit || false,
             batik_kbih_sudah_diterima: data.batik_kbih_sudah_diterima || false,
             koper_sudah_diterima: data.koper_sudah_diterima || false,
+            seragam_umroh_sudah_diterima: data.seragam_umroh_sudah_diterima || false,
             gedung_manasik: data.gedung_manasik || '',
             kamar_manasik: data.kamar_manasik || '',
             rombongan: data.rombongan || '',
@@ -117,6 +127,30 @@ export default function JamaahForm() {
         .finally(() => setLoading(false));
     }
   }, [id, isEdit]);
+
+  useEffect(() => {
+    if (!dariId) return;
+    setLoading(true);
+    fetchJamaahById(dariId)
+      .then((data) => {
+        setDariPaket(data.paket?.label || '');
+        // Only the person's own data; paket, payment, manasik and documents
+        // belong to each registration.
+        setForm({
+          ...emptyForm,
+          nama: data.nama || '',
+          nik: data.nik || '',
+          nomor_paspor: data.nomor_paspor || '',
+          alamat: data.alamat || '',
+          no_hp: data.no_hp || '',
+          tempat_lahir: data.tempat_lahir || '',
+          tanggal_lahir: isoToDateInput(data.tanggal_lahir),
+          jenis_kelamin: data.jenis_kelamin || 'laki-laki',
+        });
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [dariId]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -174,15 +208,31 @@ export default function JamaahForm() {
     'mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500';
   const labelClass = 'block text-sm font-medium text-gray-700';
 
-  if (loading && isEdit && !form.nama) {
+  if (loading && (isEdit || dariId) && !form.nama) {
     return <p className="text-gray-500">Memuat data...</p>;
   }
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        {isEdit ? 'Edit Jamaah' : 'Tambah Jamaah Baru'}
+        {isEdit ? 'Edit Jamaah' : dariId ? 'Daftarkan ke Paket Lain' : 'Tambah Jamaah Baru'}
       </h1>
+
+      {dariId && form.nama && (
+        <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 rounded-md text-sm">
+          Data diri {form.nama} disalin dari pendaftaran{dariPaket ? ` ${dariPaket}` : ''}, dan dokumen
+          identitas (KTP, KK, paspor, pas foto) otomatis dipakai bersama. Pilih paket yang baru; tagihan,
+          manasik, dan bukti pembayaran dicatat terpisah untuk paket ini.
+        </div>
+      )}
+
+      {isEdit && paketLain.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm">
+          Jamaah ini juga terdaftar di {paketLain.map((p) => p.paket).filter(Boolean).join(', ') || `${paketLain.length} paket lain`}.
+          Perubahan data diri (nama, NIK, paspor, alamat, no HP, tempat/tanggal lahir, jenis kelamin) ikut
+          diperbarui di sana.
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
@@ -556,36 +606,18 @@ export default function JamaahForm() {
 
         <Section title="Kelengkapan">
           <div className="flex flex-wrap gap-6">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                name="batik_nasional_sudah_dijahit"
-                checked={form.batik_nasional_sudah_dijahit}
-                onChange={handleChange}
-                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              Batik Nasional Sudah Dijahit
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                name="batik_kbih_sudah_diterima"
-                checked={form.batik_kbih_sudah_diterima}
-                onChange={handleChange}
-                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              Batik KBIH Sudah Diterima
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                name="koper_sudah_diterima"
-                checked={form.koper_sudah_diterima}
-                onChange={handleChange}
-                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              Koper Sudah Diterima
-            </label>
+            {kelengkapanItems(selectedPaket?.tipe).map((item) => (
+              <label key={item.field} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name={item.field}
+                  checked={form[item.field]}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                {item.label}
+              </label>
+            ))}
           </div>
         </Section>
 

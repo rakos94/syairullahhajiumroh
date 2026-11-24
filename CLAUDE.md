@@ -21,7 +21,7 @@ Haji/umroh jamaah management. Go 1.25 (Gin) + MongoDB backend; React 19 + Vite +
   - `document_access.go`: HMAC-signed doc links (2h TTL); `/jamaah/:id/dokumen/:docType` is outside auth
   - `manasik_token.go`: QR token `SYH1.<id>.<hmac>`; `portal_handler.go`: public Cek Kamar (rate limited)
 - `internal/middleware` — JWT `AuthRequired` (sets `admin_id`, `admin_username`), rate limiter, security headers
-- `internal/migration/migration.go` — ordered list `001_…`–`009_…`, recorded in `migrations` collection; append new ones, never edit applied ones
+- `internal/migration/migration.go` — ordered list `001_…`–`010_…`, recorded in `migrations` collection; append new ones, never edit applied ones
 
 ## Frontend (`web/src`)
 - `api.js` — all fetch calls via `authFetch` (Bearer from localStorage, 401 → /login); images compressed client-side before upload
@@ -33,7 +33,7 @@ Haji/umroh jamaah management. Go 1.25 (Gin) + MongoDB backend; React 19 + Vite +
 jamaah=pilgrim · paket=package (haji/umroh, tahun, bulan, prices) · tagihan=billing · DP/lunas/belum_bayar=payment status · bukti=receipt · manasik=rituals training (sesi=session, kehadiran=attendance, kamar/regu=room/group) · pengumuman=announcement · riwayat=audit log · NIK=national ID
 
 ## Conventions
-- Soft delete (`deleted_at`) for jamaah; NIK unique
+- Soft delete (`deleted_at`) for jamaah; one record per (person, paket): NIK/paspor unique per `(nik, paket_id, deleted_at)` — a person can join several pakets; create/edit syncs data diri to all records of that NIK (create requires matching tanggal_lahir) and identity docs (KTP/KK/paspor/pasfoto) are shared (`saveSharedDoc`, file removed only when `CountFileRefs` = 0)
 - Roles: `"super"` (created from env on first boot only; manages admins) and `"admin"`
 - Prod refuses to start with default/short `JWT_SECRET`; never weaken these checks
 - When adding routes/fields/features, update README "API Endpoints" / "Data Model" / "Fitur"
