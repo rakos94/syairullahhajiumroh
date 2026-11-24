@@ -209,7 +209,7 @@ Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint but
 - Tipe (haji/umroh), Tahun, Bulan (hanya umroh) → label otomatis: "Haji 2026", "Umroh April 2026"
 - Tanggal keberangkatan (bisa lebih dari satu)
 - Harga, atau beberapa pilihan harga (nama + harga)
-- Umroh: Hotel Mekkah dan Hotel Madinah, masing-masing dengan link Google Maps opsional (hanya link Google Maps yang diterima; jika kosong, Cek Kamar memakai pencarian nama hotel)
+- Hotel Mekkah dan Hotel Madinah (haji dan umroh), masing-masing dengan link Google Maps opsional (hanya link Google Maps yang diterima; jika kosong, Cek Kamar memakai pencarian nama hotel)
 
 ### Jamaah
 
@@ -218,7 +218,7 @@ Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint but
 - Pembayaran: Status (belum_bayar / dp / lunas — otomatis dari bukti jika paket punya harga), Bukti DP & Pelunasan (file + nominal), No Rekening Haji, Tipe Bank
 - Perlengkapan: haji → Batik Nasional, Batik KBIH, Koper; umroh → Seragam Umroh, Koper
 - Manasik: Gedung, Kamar, Rombongan, Regu, Ketua Regu/Rombongan
-- Hotel (umroh): Kamar Hotel Mekkah, Kamar Hotel Madinah
+- Hotel: Kamar Hotel Mekkah, Kamar Hotel Madinah
 - Dokumen: KTP, KK, Paspor, Pas Foto, Foto Koper Diterima
 - Satu orang bisa ikut beberapa paket (mis. umroh lalu haji): tiap paket satu record jamaah. NIK dan nomor paspor unik **per paket** (record yang sudah dihapus tidak dihitung). Data diri (nama, NIK, paspor, alamat, no HP, tempat/tanggal lahir, jenis kelamin) disinkronkan otomatis ke semua record dengan NIK yang sama saat diedit atau saat didaftarkan ke paket baru (tanggal lahir harus sama dengan pendaftaran sebelumnya, untuk mencegah salah ketik NIK), dan dokumen identitas (KTP, KK, paspor, pas foto) dipakai bersama: sekali unggah berlaku di semua paket. Tagihan, bukti pembayaran, foto koper, dan manasik tetap per record.
 
@@ -237,7 +237,7 @@ Semua endpoint di bawah prefix `/api`. Kecuali ditandai **publik**, endpoint but
 - Upload dokumen dengan kompresi gambar di browser, preview lightbox, link dokumen kedaluwarsa
 - Tagihan per jamaah (harga, potongan, DP, pelunasan, sisa) dengan export
 - Manasik: pembagian kamar/regu (import/export), sesi, absensi via scan QR
-- Portal jamaah publik: Cek Kamar + QR absensi, pengumuman. Jika NIK terdaftar di beberapa paket, jamaah memilih paket yang ingin dilihat; haji menampilkan gedung/kamar manasik, umroh menampilkan hotel dan kamar di Mekkah & Madinah
+- Portal jamaah publik: Cek Kamar + QR absensi, pengumuman. Jika NIK terdaftar di beberapa paket, jamaah memilih paket yang ingin dilihat; haji menampilkan gedung/kamar manasik; haji dan umroh menampilkan hotel dan kamar di Mekkah & Madinah (dengan tombol Google Maps)
 - "Daftarkan ke Paket Lain" dari detail jamaah: data diri disalin ke pendaftaran paket baru
 - Dashboard statistik dan riwayat perubahan (audit log)
 - Format Rupiah + terbilang, tanggal Indonesia (dd/mm/yyyy), tombol salin (NIK, dll.)

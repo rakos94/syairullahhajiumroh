@@ -48,7 +48,7 @@ type Jamaah struct {
 	BatikNasionalSudahDijahit bool               `json:"batik_nasional_sudah_dijahit" bson:"batik_nasional_sudah_dijahit"`
 	BatikKBIHSudahDiterima    bool               `json:"batik_kbih_sudah_diterima" bson:"batik_kbih_sudah_diterima"`
 	KoperSudahDiterima        bool               `json:"koper_sudah_diterima" bson:"koper_sudah_diterima"`
-	// Umroh only: room numbers in the paket's Mekkah / Madinah hotels.
+	// Room numbers in the paket's Mekkah / Madinah hotels (haji and umroh).
 	KamarHotelMekkah  string `json:"kamar_hotel_mekkah" bson:"kamar_hotel_mekkah"`
 	KamarHotelMadinah string `json:"kamar_hotel_madinah" bson:"kamar_hotel_madinah"`
 	// Umroh only (haji uses the two batik fields instead).

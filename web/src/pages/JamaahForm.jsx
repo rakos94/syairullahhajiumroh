@@ -532,7 +532,7 @@ export default function JamaahForm() {
           </p>
         </Section>
 
-        {selectedPaket?.tipe === 'umroh' && (
+        {selectedPaket && (
           <Section
             title="Hotel"
             description="Nama hotel diatur di menu Paket. Jamaah dapat melihat hotel dan nomor kamarnya di halaman Cek Kamar."

@@ -292,17 +292,13 @@ func (h *PaketHandler) Delete(c *gin.Context) {
 }
 
 // normalizePilihanHarga trims names and validates price options.
-// normalizeHotel trims hotel names and checks the Maps links; hotels are
-// only for umroh pakets. It returns an error message, or "" when valid.
+// normalizeHotel trims hotel names and checks the Maps links. It returns an
+// error message, or "" when valid.
 func normalizeHotel(p *model.Paket) string {
 	p.HotelMekkah = strings.TrimSpace(p.HotelMekkah)
 	p.HotelMadinah = strings.TrimSpace(p.HotelMadinah)
 	p.MapsHotelMekkah = strings.TrimSpace(p.MapsHotelMekkah)
 	p.MapsHotelMadinah = strings.TrimSpace(p.MapsHotelMadinah)
-	if p.Tipe != "umroh" {
-		p.HotelMekkah, p.HotelMadinah, p.MapsHotelMekkah, p.MapsHotelMadinah = "", "", "", ""
-		return ""
-	}
 	if p.MapsHotelMekkah != "" && !isGoogleMapsURL(p.MapsHotelMekkah) {
 		return "link Google Maps hotel Mekkah tidak valid (salin dari tombol Bagikan di Google Maps)"
 	}

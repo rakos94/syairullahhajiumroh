@@ -94,7 +94,7 @@ function mapsUrl(hotel, kota, link) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel} ${kota}`)}`;
 }
 
-// Umroh hotel in one city: hotel name (per paket) + the jamaah's room.
+// Hotel in one city: hotel name (per paket) + the jamaah's room.
 function HotelCard({ kota, hotel, kamar, maps }) {
   const url = mapsUrl(hotel, kota, maps);
   return (
@@ -123,26 +123,12 @@ function PaketResult({ item, nama }) {
   const sudahDitentukan = item.gedung_manasik || item.kamar_manasik;
   // Manasik (gedung/kamar/rombongan) is only for haji.
   const isHaji = item.tipe_paket === 'haji';
-  const isUmroh = item.tipe_paket === 'umroh';
   const adaHotel = item.hotel_mekkah || item.hotel_madinah || item.kamar_hotel_mekkah || item.kamar_hotel_madinah;
 
   return (
     <div>
       {item.paket && <p className="text-sm text-gray-600 mt-1">{item.paket}</p>}
       {keberangkatan && <p className="text-sm text-gray-600">Keberangkatan: {keberangkatan}</p>}
-
-      {isUmroh &&
-        (adaHotel ? (
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <HotelCard kota="Mekkah" hotel={item.hotel_mekkah} kamar={item.kamar_hotel_mekkah} maps={item.maps_hotel_mekkah} />
-            <HotelCard kota="Madinah" hotel={item.hotel_madinah} kamar={item.kamar_hotel_madinah} maps={item.maps_hotel_madinah} />
-          </div>
-        ) : (
-          <div className="mt-6 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-            Hotel dan kamar Anda di Mekkah dan Madinah belum ditentukan. Silakan cek kembali nanti
-            atau hubungi petugas.
-          </div>
-        ))}
 
       {isHaji &&
         (sudahDitentukan ? (
@@ -166,6 +152,20 @@ function PaketResult({ item, nama }) {
             hubungi petugas.
           </div>
         ))}
+
+      {/* Hotel in Mekkah & Madinah (haji and umroh) */}
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-gray-500">Hotel</p>
+      {adaHotel ? (
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <HotelCard kota="Mekkah" hotel={item.hotel_mekkah} kamar={item.kamar_hotel_mekkah} maps={item.maps_hotel_mekkah} />
+          <HotelCard kota="Madinah" hotel={item.hotel_madinah} kamar={item.kamar_hotel_madinah} maps={item.maps_hotel_madinah} />
+        </div>
+      ) : (
+        <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+          Hotel dan kamar Anda di Mekkah dan Madinah belum ditentukan. Silakan cek kembali nanti
+          atau hubungi petugas.
+        </div>
+      )}
 
       {(item.rombongan || item.regu) && (
         <div className="mt-3 grid grid-cols-2 gap-3">

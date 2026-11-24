@@ -68,7 +68,7 @@ type CekKamarPaket struct {
 	Regu                 string                     `json:"regu"`
 	KetuaRegu            []KontakKetua              `json:"ketua_regu"`
 	KetuaRombongan       []KontakKetua              `json:"ketua_rombongan"`
-	// Umroh only: hotel names (per paket) and the jamaah's room numbers.
+	// Hotel names in Mekkah/Madinah (per paket) and the jamaah's room numbers.
 	HotelMekkah       string `json:"hotel_mekkah,omitempty"`
 	HotelMadinah      string `json:"hotel_madinah,omitempty"`
 	KamarHotelMekkah  string `json:"kamar_hotel_mekkah,omitempty"`
@@ -182,11 +182,9 @@ func (h *PortalHandler) cekKamarPaket(ctx context.Context, jamaah *model.Jamaah)
 	out.Paket = paket.Label
 	out.TipePaket = paket.Tipe
 	out.Kelengkapan = kelengkapan(jamaah, paket.Tipe)
-	if paket.Tipe == "umroh" {
-		out.HotelMekkah, out.HotelMadinah = paket.HotelMekkah, paket.HotelMadinah
-		out.KamarHotelMekkah, out.KamarHotelMadinah = jamaah.KamarHotelMekkah, jamaah.KamarHotelMadinah
-		out.MapsHotelMekkah, out.MapsHotelMadinah = paket.MapsHotelMekkah, paket.MapsHotelMadinah
-	}
+	out.HotelMekkah, out.HotelMadinah = paket.HotelMekkah, paket.HotelMadinah
+	out.KamarHotelMekkah, out.KamarHotelMadinah = jamaah.KamarHotelMekkah, jamaah.KamarHotelMadinah
+	out.MapsHotelMekkah, out.MapsHotelMadinah = paket.MapsHotelMekkah, paket.MapsHotelMadinah
 	if paket.Tipe == "haji" {
 		out.QRToken = manasikToken(h.qrSecret, jamaah.ID)
 		if regu, rombongan, err := h.repo.FindLeaders(ctx, jamaah.PaketID, jamaah.Rombongan, jamaah.Regu); err == nil {
